@@ -24,11 +24,9 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid == usn;
     }
 
-    // Notifications — only recipient can read/update.
+    // Notifications — no longer used; deny all client access
     match /notifications/{notifId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, write: if false;
     }
 
     // Events — publicly readable (for dashboard event picker); writes via admin SDK only

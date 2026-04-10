@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { getSession, fullLogout } from "@/lib/session";
 import { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
-import NotificationBell from "@/components/NotificationBell";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -61,7 +60,6 @@ export default function Navbar() {
             >
               Status
             </Link>
-            <NotificationBell userId={session.usn} />
             <button onClick={handleLogout} className="nav-btn" style={{ gap: "6px" }}>
               <LogOut style={{ width: 14, height: 14 }} />
               Logout

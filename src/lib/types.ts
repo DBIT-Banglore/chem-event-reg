@@ -46,17 +46,6 @@ export interface Config {
 }
 
 // App notification (kept minimal)
-export interface AppNotification {
-  id: string;
-  userId: string;
-  type: "event_selected" | "event_changed";
-  title: string;
-  message: string;
-  eventId: string;
-  eventName: string | null;
-  read: boolean;
-  createdAt: Date | null;
-}
 
 // localStorage session data
 export interface SessionData {
