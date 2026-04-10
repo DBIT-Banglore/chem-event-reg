@@ -384,7 +384,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 fade-in-up">
       {/* Step indicator */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: "8px", overflow: "hidden" }}>
         {[
           { key: "usn", label: "USN" },
           { key: "otp", label: "Verify" },
@@ -397,41 +397,43 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
             (key === "otp" && (step === "register" || step === "event")) ||
             (key === "register" && step === "event");
           return (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div key={key} style={{ display: "flex", alignItems: "center", flex: i < 3 ? 1 : "none" }}>
               {i > 0 && (
-                <div style={{ width: "24px", height: "1.5px", background: isDone ? "var(--ink)" : "var(--line)" }} />
+                <div style={{ flex: 1, height: "1.5px", background: isDone ? "var(--ink)" : "var(--line)", minWidth: 8, marginRight: 6 }} />
               )}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "6px",
-                  fontSize: "11px",
+                  gap: "5px",
+                  fontSize: "10px",
                   fontWeight: 700,
                   textTransform: "uppercase",
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.08em",
                   color: isActive ? "var(--ink)" : isDone ? "var(--ink)" : "var(--muted)",
-                  opacity: isActive || isDone ? 1 : 0.5,
+                  opacity: isActive || isDone ? 1 : 0.45,
+                  whiteSpace: "nowrap",
                 }}
               >
                 {isDone ? (
-                  <CheckCircle2 style={{ width: 14, height: 14 }} />
+                  <CheckCircle2 style={{ width: 13, height: 13, flexShrink: 0 }} />
                 ) : (
                   <span
                     style={{
-                      width: 18,
-                      height: 18,
+                      width: 17,
+                      height: 17,
                       border: `1.5px solid ${isActive ? "var(--ink)" : "var(--line)"}`,
                       display: "grid",
                       placeItems: "center",
-                      fontSize: "10px",
+                      fontSize: "9px",
                       fontWeight: 800,
+                      flexShrink: 0,
                     }}
                   >
                     {i + 1}
                   </span>
                 )}
-                {label}
+                {(isActive || isDone) && <span>{label}</span>}
               </div>
             </div>
           );
