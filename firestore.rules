@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Students — read-only for authenticated users (admin SDK writes)
+    match /students/{usn} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Config — publicly readable (registration status flags, non-sensitive)
+    // Write restricted to admin SDK only
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Registrations — create only your own; update only your own
+    // Event selection updates happen via admin SDK (select-event route)
+    match /registrations/{usn} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == usn;
+      allow update: if request.auth != null && request.auth.uid == usn;
+    }
+
+    // Notifications — only recipient can read/update.
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Events — publicly readable (for dashboard event picker); writes via admin SDK only
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // OTP codes — server-only (admin SDK); deny all client access
+    match /otp_codes/{doc} {
+      allow read, write: if false;
+    }
+  }
+}

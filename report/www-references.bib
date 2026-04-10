@@ -1,0 +1,450 @@
+% ============================================================
+% www-references.bib
+% Bibliography for WWW (Springer) journal paper
+% ~40 references: web systems, serverless, NoSQL, real-time,
+%   constraint satisfaction, rate limiting, security
+% ============================================================
+
+% ---- KEPT FROM ORIGINAL ----
+
+@inproceedings{lappas2009,
+  author    = {Lappas, Theodoros and Liu, Kun and Terzi, Evimaria},
+  title     = {Finding a Team of Experts in Social Networks},
+  booktitle = {Proc.\ 15th ACM SIGKDD Int.\ Conf.\ Knowledge Discovery and Data Mining},
+  year      = {2009},
+  pages     = {467--476},
+  address   = {Paris, France},
+  publisher = {ACM},
+  doi       = {10.1145/1557019.1557074}
+}
+
+@inproceedings{anagnostopoulos2012,
+  author    = {Anagnostopoulos, Aris and Becchetti, Luca and Castillo, Carlos and Gionis, Aristides and Leonardi, Stefano},
+  title     = {Online Team Formation in Social Networks},
+  booktitle = {Proc.\ 21st Int.\ Conf.\ World Wide Web (WWW)},
+  year      = {2012},
+  pages     = {839--848},
+  address   = {Lyon, France},
+  publisher = {ACM},
+  doi       = {10.1145/2187836.2187950}
+}
+
+@article{wi2009,
+  author  = {Wi, Hyeongon and Oh, Seungjin and Mun, Jeoungkyu and Jung, Mooyoung},
+  title   = {A Team Formation Model Based on Knowledge and Collaboration},
+  journal = {Expert Systems with Applications},
+  volume  = {36},
+  number  = {5},
+  pages   = {9121--9134},
+  year    = {2009},
+  doi     = {10.1016/j.eswa.2008.12.031}
+}
+
+@misc{jones2015,
+  author       = {Jones, Michael and Bradley, John and Sakimura, Nat},
+  title        = {{JSON} {Web} {Token} ({JWT})},
+  howpublished = {IETF RFC~7519},
+  year         = {2015},
+  month        = may,
+  url          = {https://datatracker.ietf.org/doc/html/rfc7519}
+}
+
+@misc{mraihi2011,
+  author       = {M'Raihi, David and Machani, Salah and Pei, Mingliang and Rydell, Johan},
+  title        = {{TOTP}: Time-Based One-Time Password Algorithm},
+  howpublished = {IETF RFC~6238},
+  year         = {2011},
+  month        = may,
+  url          = {https://datatracker.ietf.org/doc/html/rfc6238}
+}
+
+@misc{hardt2012,
+  author       = {Hardt, Dick},
+  title        = {The {OAuth} 2.0 Authorization Framework},
+  howpublished = {IETF RFC~6749},
+  year         = {2012},
+  month        = oct,
+  url          = {https://datatracker.ietf.org/doc/html/rfc6749}
+}
+
+@misc{owasp2021,
+  author       = {{OWASP Foundation}},
+  title        = {{OWASP} Top Ten Web Application Security Risks},
+  year         = {2021},
+  url          = {https://owasp.org/www-project-top-ten/}
+}
+
+@misc{firebase,
+  author       = {{Google}},
+  title        = {Firebase Documentation},
+  year         = {2026},
+  url          = {https://firebase.google.com/docs}
+}
+
+@misc{nextjs,
+  author       = {{Vercel}},
+  title        = {{Next.js} Documentation},
+  year         = {2026},
+  url          = {https://nextjs.org/docs}
+}
+
+% ---- NEW: REAL-TIME WEB ARCHITECTURES ----
+
+@article{pimentel2012,
+  author    = {Pimentel, Victoria and Nickerson, Bradford G.},
+  title     = {Communicating and Displaying Real-Time Data with {WebSocket}},
+  journal   = {IEEE Internet Computing},
+  volume    = {16},
+  number    = {4},
+  pages     = {45--53},
+  year      = {2012},
+  doi       = {10.1109/MIC.2012.64}
+}
+
+@article{wang2013,
+  author  = {Wang, Vanessa and Salim, Frank and Moskovits, Peter},
+  title   = {The Definitive Guide to {HTML5 WebSocket}},
+  journal = {Apress},
+  year    = {2013},
+  doi     = {10.1007/978-1-4302-4741-8}
+}
+
+@book{grigorik2013,
+  author    = {Grigorik, Ilya},
+  title     = {High Performance Browser Networking},
+  publisher = {O'Reilly Media},
+  year      = {2013},
+  note      = {Chapters on SSE, WebSocket, and HTTP/2}
+}
+
+@article{lubbers2010,
+  author  = {Lubbers, Peter and Greco, Frank},
+  title   = {{HTML5 WebSocket}: A Quantum Leap in Scalability for the Web},
+  journal = {SOA World Magazine},
+  year    = {2010},
+  url     = {https://websocket.org/quantum.html}
+}
+
+% ---- NEW: CAP THEOREM & NOSQL CONSISTENCY ----
+
+@inproceedings{brewer2000,
+  author    = {Brewer, Eric A.},
+  title     = {Towards Robust Distributed Systems},
+  booktitle = {Proc.\ 19th Annual ACM Symp.\ Principles of Distributed Computing (PODC)},
+  year      = {2000},
+  note      = {Keynote address. Introduced the CAP conjecture.},
+  doi       = {10.1145/343477.343502}
+}
+
+@article{gilbert2002,
+  author  = {Gilbert, Seth and Lynch, Nancy},
+  title   = {Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services},
+  journal = {ACM SIGACT News},
+  volume  = {33},
+  number  = {2},
+  pages   = {51--59},
+  year    = {2002},
+  doi     = {10.1145/564585.564601}
+}
+
+@article{decandia2007,
+  author  = {DeCandia, Giuseppe and Hastorun, Deniz and Jampani, Madan and Kakulapati, Gunavardhan and Lakshman, Avinash and Pilchin, Alex and Sivasubramanian, Swaminathan and Vosshall, Peter and Vogels, Werner},
+  title   = {Dynamo: {Amazon}'s Highly Available Key-Value Store},
+  journal = {ACM SIGOPS Operating Systems Review},
+  volume  = {41},
+  number  = {6},
+  pages   = {205--220},
+  year    = {2007},
+  doi     = {10.1145/1323293.1294281}
+}
+
+@article{vogels2009,
+  author  = {Vogels, Werner},
+  title   = {Eventually Consistent},
+  journal = {Communications of the ACM},
+  volume  = {52},
+  number  = {1},
+  pages   = {40--44},
+  year    = {2009},
+  doi     = {10.1145/1435417.1435432}
+}
+
+@inproceedings{chang2006,
+  author    = {Chang, Fay and Dean, Jeffrey and Ghemawat, Sanjay and Hsieh, Wilson C. and Wallach, Deborah A. and Burrows, Mike and Chandra, Tushar and Fikes, Andrew and Gruber, Robert E.},
+  title     = {Bigtable: A Distributed Storage System for Structured Data},
+  booktitle = {Proc.\ 7th USENIX Symp.\ Operating Systems Design and Implementation (OSDI)},
+  year      = {2006},
+  pages     = {205--218}
+}
+
+@article{cattell2010,
+  author  = {Cattell, Rick},
+  title   = {Scalable {SQL} and {NoSQL} Data Stores},
+  journal = {ACM SIGMOD Record},
+  volume  = {39},
+  number  = {4},
+  pages   = {12--27},
+  year    = {2010},
+  doi     = {10.1145/1978915.1978919}
+}
+
+% ---- NEW: SERVERLESS ARCHITECTURE ----
+
+@inproceedings{jonas2017,
+  author    = {Jonas, Eric and Pu, Qifan and Venkataraman, Shivaram and Stoica, Ion and Recht, Benjamin},
+  title     = {Occupy the Cloud: Distributed Computing for the 99\%},
+  booktitle = {Proc.\ 2017 Symp.\ Cloud Computing (SoCC)},
+  year      = {2017},
+  pages     = {445--451},
+  publisher = {ACM},
+  doi       = {10.1145/3127479.3128601}
+}
+
+@article{jonas2019,
+  author  = {Jonas, Eric and Schleier-Smith, Johann and Sreekanti, Vikram and Tsai, Chia-Che and Khandelwal, Anurag and Pu, Qifan and Shankar, Vaishaal and Carreira, Joao and Krauth, Karl and Yadwadkar, Neeraja and Gonzalez, Joseph E. and Popa, Raluca Ada and Stoica, Ion and Patterson, David A.},
+  title   = {Cloud Programming Simplified: A {Berkeley} View on Serverless Computing},
+  journal = {Technical Report No.\ UCB/EECS-2019-3},
+  year    = {2019},
+  url     = {https://www2.eecs.berkeley.edu/Pubs/TechRpts/2019/EECS-2019-3.html}
+}
+
+@article{baldini2017,
+  author  = {Baldini, Ioana and Castro, Paul and Chang, Kerry and Cheng, Perry and Fink, Stephen and Ishakian, Vatche and Mitchell, Nick and Muthusamy, Vinod and Rabbah, Rodric and Slominski, Aleksander and Suter, Philippe},
+  title   = {Serverless Computing: Current Trends and Open Problems},
+  journal = {Research Advances in Cloud Computing},
+  pages   = {1--20},
+  year    = {2017},
+  publisher = {Springer},
+  doi     = {10.1007/978-981-10-5026-8_1}
+}
+
+@article{schleier-smith2021,
+  author    = {Schleier-Smith, Johann and Sreekanti, Vikram and Khandelwal, Anurag and Carreira, Joao and Yadwadkar, Neeraja J. and Popa, Raluca Ada and Gonzalez, Joseph E. and Stoica, Ion},
+  title     = {What Serverless Computing Is and Should Become: The Next Phase of Cloud Computing},
+  journal   = {Communications of the ACM},
+  volume    = {64},
+  number    = {5},
+  pages     = {76--84},
+  year      = {2021},
+  doi       = {10.1145/3406011}
+}
+
+@inproceedings{mcgrath2017,
+  author    = {McGrath, Garrett and Brenner, Paul R.},
+  title     = {Serverless Computing: Design, Implementation, and Performance},
+  booktitle = {Proc.\ IEEE 37th Int.\ Conf.\ Distributed Computing Systems Workshops (ICDCSW)},
+  year      = {2017},
+  pages     = {405--410},
+  doi       = {10.1109/ICDCSW.2017.36}
+}
+
+% ---- NEW: CONSTRAINT SATISFACTION ----
+
+@book{rossi2006,
+  author    = {Rossi, Francesca and van Beek, Peter and Walsh, Toby},
+  title     = {Handbook of Constraint Programming},
+  publisher = {Elsevier},
+  year      = {2006},
+  series    = {Foundations of Artificial Intelligence}
+}
+
+@article{kumar1992,
+  author  = {Kumar, Vipin},
+  title   = {Algorithms for Constraint-Satisfaction Problems: A Survey},
+  journal = {AI Magazine},
+  volume  = {13},
+  number  = {1},
+  pages   = {32--44},
+  year    = {1992},
+  doi     = {10.1609/aimag.v13i1.976}
+}
+
+@article{tsang1999,
+  author  = {Tsang, Edward P. K.},
+  title   = {A Glimpse of Constraint Satisfaction},
+  journal = {Artificial Intelligence Review},
+  volume  = {13},
+  number  = {3},
+  pages   = {215--227},
+  year    = {1999},
+  doi     = {10.1023/A:1006558104682}
+}
+
+% ---- NEW: RATE LIMITING & API KEY MANAGEMENT ----
+
+@misc{ietf-ratelimit2024,
+  author       = {Polli, Roberto and Martinotti, Alejandro},
+  title        = {{RateLimit} Header Fields for {HTTP}},
+  howpublished = {IETF Internet-Draft, draft-ietf-httpapi-ratelimit-headers},
+  year         = {2024},
+  url          = {https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/}
+}
+
+@inproceedings{raghavan2007,
+  author    = {Raghavan, Barath and Vishwanath, Kashi and Ramabhadran, Sriram and Yocum, Kenneth and Snoeren, Alex C.},
+  title     = {Cloud Control with Distributed Rate Limiting},
+  booktitle = {Proc.\ ACM SIGCOMM},
+  year      = {2007},
+  pages     = {337--348},
+  doi       = {10.1145/1282380.1282419}
+}
+
+@article{tanenbaum2011,
+  author  = {Tanenbaum, Andrew S. and Wetherall, David J.},
+  title   = {Computer Networks},
+  journal = {Pearson},
+  edition = {5th},
+  year    = {2011},
+  note    = {Covers token bucket and leaky bucket algorithms for traffic shaping and rate limiting}
+}
+
+% ---- NEW: REST & WEB ARCHITECTURE ----
+
+@phdthesis{fielding2000,
+  author = {Fielding, Roy Thomas},
+  title  = {Architectural Styles and the Design of Network-Based Software Architectures},
+  school = {University of California, Irvine},
+  year   = {2000},
+  note   = {Introduced REST architectural style}
+}
+
+@inproceedings{richardson2007,
+  author    = {Richardson, Leonard and Ruby, Sam},
+  title     = {{RESTful} Web Services},
+  publisher = {O'Reilly Media},
+  year      = {2007}
+}
+
+% ---- NEW: SELF-SERVICE & WORKFLOW PLATFORMS ----
+
+@article{vanderaalst2003,
+  author  = {van der Aalst, Wil M. P. and ter Hofstede, Arthur H. M. and Weske, Mathias},
+  title   = {Business Process Management: A Survey},
+  journal = {Business Process Management, LNCS},
+  volume  = {2678},
+  pages   = {1--12},
+  year    = {2003},
+  publisher = {Springer},
+  doi     = {10.1007/3-540-44895-0_1}
+}
+
+@article{harel1987,
+  author  = {Harel, David},
+  title   = {Statecharts: A Visual Formalism for Complex Systems},
+  journal = {Science of Computer Programming},
+  volume  = {8},
+  number  = {3},
+  pages   = {231--274},
+  year    = {1987},
+  doi     = {10.1016/0167-6423(87)90035-9}
+}
+
+@article{hopcroft1971,
+  author  = {Hopcroft, John E. and Karp, Richard M.},
+  title   = {A Linear Algorithm for Testing Equivalence of Finite Automata},
+  journal = {Cornell University Technical Report},
+  year    = {1971},
+  note    = {Foundation for FSM-based workflow modeling}
+}
+
+% ---- NEW: WEB APPLICATION SECURITY ----
+
+@book{stuttard2011,
+  author    = {Stuttard, Dafydd and Pinto, Marcus},
+  title     = {The Web Application Hacker's Handbook},
+  edition   = {2nd},
+  publisher = {Wiley},
+  year      = {2011}
+}
+
+@inproceedings{barth2008,
+  author    = {Barth, Adam and Jackson, Collin and Mitchell, John C.},
+  title     = {Robust Defenses for Cross-Site Request Forgery},
+  booktitle = {Proc.\ 15th ACM Conf.\ Computer and Communications Security (CCS)},
+  year      = {2008},
+  pages     = {75--88},
+  doi       = {10.1145/1455770.1455782}
+}
+
+@article{zalewski2012,
+  author  = {Zalewski, Michal},
+  title   = {The Tangled Web: A Guide to Securing Modern Web Applications},
+  publisher = {No Starch Press},
+  year    = {2012}
+}
+
+% ---- NEW: DOCUMENT DATABASES & DENORMALIZATION ----
+
+@article{stonebraker2010,
+  author    = {Stonebraker, Michael},
+  title     = {{SQL} Databases v.\ {NoSQL} Databases},
+  journal   = {Communications of the ACM},
+  volume    = {53},
+  number    = {4},
+  pages     = {10--11},
+  year      = {2010},
+  doi       = {10.1145/1721654.1721659}
+}
+
+@article{han2011,
+  author  = {Han, Jing and Haihong, E and Le, Guan and Du, Jian},
+  title   = {Survey on {NoSQL} Database},
+  journal = {Proc.\ 6th Int.\ Conf.\ Pervasive Computing and Applications},
+  pages   = {363--366},
+  year    = {2011},
+  doi     = {10.1109/ICPCA.2011.6106531}
+}
+
+% ---- NEW: FORMAL METHODS & VERIFICATION ----
+
+@book{baier2008,
+  author    = {Baier, Christel and Katoen, Joost-Pieter},
+  title     = {Principles of Model Checking},
+  publisher = {MIT Press},
+  year      = {2008}
+}
+
+@article{lamport1979,
+  author  = {Lamport, Leslie},
+  title   = {How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs},
+  journal = {IEEE Transactions on Computers},
+  volume  = {C-28},
+  number  = {9},
+  pages   = {690--691},
+  year    = {1979},
+  doi     = {10.1109/TC.1979.1675439}
+}
+
+% ---- NEW: FIRESTORE SPECIFIC ----
+
+@inproceedings{firestore-consistency2019,
+  author    = {{Google Cloud}},
+  title     = {Cloud {Firestore} Data Model and Consistency Guarantees},
+  year      = {2019},
+  note      = {Firestore provides strong consistency for document reads and queries within a single document},
+  url       = {https://firebase.google.com/docs/firestore/manage-data/transactions}
+}
+
+% ---- NEW: COLLABORATION PLATFORMS ----
+
+@article{bafoutsou2002,
+  author    = {Bafoutsou, Georgia and Mentzas, Gregoris},
+  title     = {Review and Functional Classification of Collaborative Systems},
+  journal   = {Int.\ Journal of Information Management},
+  volume    = {22},
+  number    = {4},
+  pages     = {281--305},
+  year      = {2002},
+  doi       = {10.1016/S0268-4012(02)00013-0}
+}
+
+@article{olson2000,
+  author  = {Olson, Gary M. and Olson, Judith S.},
+  title   = {Distance Matters},
+  journal = {Human-Computer Interaction},
+  volume  = {15},
+  number  = {2--3},
+  pages   = {139--178},
+  year    = {2000},
+  doi     = {10.1207/S15327051HCI1523\_4}
+}

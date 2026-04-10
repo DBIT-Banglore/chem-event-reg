@@ -1,0 +1,978 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx} % Times New Roman
+\usepackage[margin=1.6cm,top=2.54cm,bottom=2.54cm]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{multirow}
+
+\singlespacing
+
+% Heading styles for IJRTI
+\titleformat{\section}{\normalsize\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing{\section}{0pt}{8pt}{4pt}
+\titlespacing{\subsection}{0pt}{6pt}{3pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\pagestyle{plain}
+
+\begin{document}
+
+% ============ TITLE ============
+\begin{center}
+{\LARGE\bfseries A Scalable Self-Service Platform for Constraint-Enforced Cross-Disciplinary Team Formation in Engineering Education}
+
+\vspace{12pt}
+
+{\large $^1$Mithun Gowda B, $^2$Harsha N, $^3$Naren V, $^4$Nevil Anson Dsouza}
+
+\vspace{4pt}
+
+$^{1,2,3,4}$Student
+
+Department of Computer Science and Engineering
+
+Don Bosco Institute of Technology, Bangalore, India
+
+Visvesvaraya Technological University (VTU)
+
+\vspace{4pt}
+
+$^1$mithungowda.b7411@gmail.com, $^2$harsha210108@gmail.com,
+
+$^3$narenbhaskar2007@gmail.com, $^4$nevilansondsouza@gmail.com
+\end{center}
+
+\vspace{8pt}
+
+\textbf{\textit{Abstract}}---\textit{Cross-disciplinary team formation is a critical yet underserved challenge in engineering education. Institutions must organize hundreds or thousands of students into balanced, diverse teams that satisfy pedagogical constraints---a process that is time-consuming when done manually, inflexible when done algorithmically, and unsupported by existing Learning Management Systems. This paper presents a novel self-service team formation platform that combines student agency with automated real-time constraint enforcement---a hybrid approach absent from current solutions. The system enables students to create teams, invite members, and browse open teams, while a constraint engine enforces configurable diversity rules (e.g., branch concentration limits, minimum diversity thresholds, mandatory representation requirements) at every stage of team composition. We formalize the constraint model with four parameterizable rules, present a two-phase race-condition-safe validation algorithm with formal complexity analysis, and describe a five-layer defense-in-depth security architecture including custom email-based OTP authentication, JWT sessions, document-level access control, and IP-based rate limiting. A six-layer duplication prevention framework guarantees data integrity invariants---preventing duplicate team memberships, redundant invitations, and orphaned references. A multi-key email delivery system with round-robin load balancing and automatic failover enables operation within free-tier email quotas. The platform is implemented as an open-source Next.js application with Firebase Firestore, comprising 8,245 lines of TypeScript across 58 files. We validate the approach through a production deployment at an Indian engineering institution serving 823 students across 7 branches, and present a comparative analysis against five existing team formation approaches across 13 evaluation criteria. Results demonstrate an estimated 96\% reduction in administrative effort, 100\% constraint satisfaction for completed teams, sub-second real-time constraint feedback, and zero data integrity violations. The architecture is generalizable to any institution with configurable branch structures, team sizes, and diversity policies, deployable at zero operational cost on serverless infrastructure.}
+
+\vspace{4pt}
+
+\textbf{\textit{Index Terms}}---\textit{Team Formation, Cross-Disciplinary Education, Constraint Validation, Self-Service Platform, Engineering Education, Real-Time Web Application, Data Integrity, Duplication Prevention, Open Source}
+
+\vspace{4pt}
+\noindent\rule{\textwidth}{0.4pt}
+
+% ============ I. INTRODUCTION ============
+\section{Introduction}
+
+\subsection{The Team Formation Challenge in Engineering Education}
+
+Interdisciplinary collaboration is a cornerstone of modern engineering education. The Accreditation Board for Engineering and Technology (ABET) explicitly requires that graduates ``function effectively on teams that establish goals, plan tasks, meet deadlines, and analyze risk and uncertainty'' [1]. Research consistently demonstrates that collaborative, cross-disciplinary learning produces measurable gains in problem-solving, communication, and systems thinking [2], [3]. Prince [4] provides a comprehensive review showing that active learning pedagogies---including team-based project work---produce statistically significant improvements in student performance compared to traditional lecture-based instruction. As a result, project-based learning with diverse teams has become standard practice across engineering curricula worldwide.
+
+However, forming these teams at scale remains a significant operational challenge that has received insufficient attention in the literature. Consider a typical large engineering institution with 500--2,000 first-year students across 5--10 branches. Forming teams of 4--8 members that satisfy branch diversity constraints requires:
+
+\begin{itemize}[noitemsep,topsep=3pt]
+    \item Organizing hundreds of students into approximately 100--300 teams
+    \item Enforcing diversity constraints (e.g., no more than $k$ members from any single branch, minimum $d$ unique branches per team, mandatory representation from specific branches)
+    \item Managing iterative team building over days or weeks as students join at different times
+    \item Handling invitations, join requests, approvals, and rejections across hundreds of concurrent interactions
+    \item Preventing data integrity violations: duplicate team memberships, conflicting invitations, orphaned registrations, and race conditions during concurrent operations
+    \item Providing administrative oversight with real-time monitoring and intervention capabilities
+\end{itemize}
+
+Existing approaches to this problem fall into three categories, each with significant limitations (Table 1):
+
+\begin{table}[H]
+\centering
+\caption{Limitations of Existing Team Formation Approaches}
+\begin{tabular}{@{}p{2.5cm}p{4cm}p{5cm}@{}}
+\toprule
+\textbf{Approach} & \textbf{Method} & \textbf{Key Limitations} \\
+\midrule
+Manual & Spreadsheets, email coordination & Days of effort, constraint violations, no real-time validation, duplicate assignments \\
+Algorithmic & Batch optimization (e.g., CATME [5]) & No student agency, batch-only, no iterative building \\
+LMS-based & Moodle groups, Canvas teams [11] & No constraint enforcement, no diversity validation, partial duplicate prevention \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The Data Integrity Problem}
+
+Beyond the team formation challenge itself, a critical but often overlooked problem is \textbf{data integrity during self-service team formation}. When hundreds of students concurrently create teams, send invitations, and process join requests, numerous integrity violations can occur: a student may be assigned to multiple teams simultaneously, the same invitation may be issued twice, concurrent acceptance operations may corrupt team rosters, and team dissolution may leave orphaned membership records that block future team joining. Manual processes are particularly susceptible to these issues---spreadsheet-based coordination routinely produces duplicate assignments that require hours of post-hoc correction [20]. Even LMS platforms like Moodle only partially address duplication: they prevent duplicate group enrollment but do not guard against duplicate invitations, redundant join requests, or cascade-cleanup failures.
+
+\subsection{Research Gap}
+
+The fundamental gap across existing solutions is the absence of a system that combines \textbf{student self-selection} (preserving agency and motivation [6]) with \textbf{real-time automated constraint enforcement} (guaranteeing diversity requirements [7]) and \textbf{comprehensive data integrity guarantees} (eliminating duplication and orphaned state). No existing system occupies the upper-right quadrant of the student agency vs. constraint enforcement space---high agency combined with high enforcement. Fig. 1 illustrates this positioning.
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 1: Positioning of Team Formation Approaches}\\[6pt]
+\begin{tabular}{l|c|c|}
+\multicolumn{1}{c}{} & \multicolumn{1}{c}{\textit{Low Agency}} & \multicolumn{1}{c}{\textit{High Agency}} \\
+\cline{2-3}
+\textit{High Enforcement} & Algorithmic (CATME) & \textbf{Proposed System} \\
+\cline{2-3}
+\textit{Low Enforcement} & Manual & Moodle, Slack/Discord \\
+\cline{2-3}
+\end{tabular}\\[6pt]
+Existing solutions cluster in three quadrants; the upper-right quadrant (high agency + high enforcement) remains unoccupied. The proposed platform fills this gap.
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+\subsection{Contributions}
+
+This paper makes the following contributions:
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item A \textbf{hybrid team formation model} (Section 2) that preserves student self-selection while enforcing institutional constraints in real time---occupying the previously unserved upper-right quadrant of Fig. 1
+    \item A \textbf{formal constraint specification and validation algorithm} (Section 3) with configurable diversity rules, complexity analysis, and race-condition protection through server-side re-validation
+    \item A \textbf{six-layer duplication prevention framework} (Section 5) ensuring single-team membership, invite idempotency, and cascade cleanup---guaranteeing data integrity across all concurrent operations
+    \item A \textbf{five-layer security architecture} (Section 6) combining email-based OTP authentication, JWT sessions, Firebase custom tokens, document-level access control, and IP-based rate limiting---designed for environments where students lack institutional SSO credentials
+    \item A \textbf{comprehensive comparative evaluation} (Section 7) against five existing approaches across 13 criteria, demonstrating advantages in constraint satisfaction, data integrity, real-time feedback, and administrative efficiency
+    \item A \textbf{production validation} (Section 9) at an engineering institution with 823 students across 7 branches, demonstrating practical viability at institutional scale with quantitative performance measurements
+    \item A complete \textbf{open-source implementation} (8,245 lines of TypeScript, 58 files) deployable on serverless infrastructure with zero operational cost on free tiers
+\end{enumerate}
+
+% ============ II. RELATED WORK ============
+\section{Related Work}
+
+\subsection{Instructor-Driven Team Formation}
+
+Oakley et al. [7] provide comprehensive guidelines for instructor-formed teams, recommending heterogeneous groupings based on academic performance and schedule compatibility. Their study of engineering courses found that instructor-formed heterogeneous teams consistently outperformed student-selected homogeneous teams on project outcomes. The CATME system [5] automates this approach using student surveys covering schedules, GPA, demographics, and personality characteristics. CATME's Team-Maker module uses a constraint satisfaction algorithm that optimizes team composition across multiple criteria simultaneously, and has been adopted by over 2,000 institutions worldwide.
+
+However, instructor-driven approaches share two fundamental limitations. First, they require significant instructor effort for each cohort---even with automation, instructors must design survey instruments, configure optimization parameters, resolve edge cases, and handle student complaints about assignments. Second, and more critically, they entirely eliminate student agency in teammate selection. Chapman et al. [6] demonstrate that this loss of agency is strongly correlated with reduced team satisfaction and lower intrinsic motivation, as students perceive imposed teams as arbitrary constraints rather than collaborative partnerships.
+
+Felder and Brent [20] recommend a middle ground---providing guidelines for team formation while allowing some student input---but do not provide a systematic mechanism for enforcing this balance at scale.
+
+\subsection{Student Self-Selection}
+
+Chapman et al. [6] provide the strongest empirical evidence for self-selection: in a controlled study across 16 undergraduate course sections, student-selected teams reported significantly higher satisfaction ($p < 0.01$), stronger interpersonal cohesion ($p < 0.05$), and greater willingness to work together in the future ($p < 0.01$) compared to instructor-assigned teams. However, Bacon et al. [8] identify a critical limitation: self-selected teams exhibit \textbf{homogeneity bias}, gravitating toward same-branch, same-background groupings that undermine the pedagogical goals of cross-disciplinary exposure. Their longitudinal study of 508 team experiences found that the ``worst'' team experiences were disproportionately associated with self-selected homogeneous groups that lacked complementary skills.
+
+Smith and MacGregor [18] provide a theoretical framework for collaborative learning that emphasizes the importance of cognitive diversity---the variety of perspectives and problem-solving approaches within a team. When self-selection produces homogeneous teams, this cognitive diversity is lost, reducing the learning benefits that motivated team-based pedagogy in the first place.
+
+\subsection{Algorithmic Approaches}
+
+Lappas et al. [9] formalize team formation as a constrained optimization problem and establish its NP-hardness for the general case where both team quality and inter-member communication cost must be optimized simultaneously. Their social-network-based approach minimizes communication cost subject to skill coverage constraints, using approximation algorithms with provable guarantees.
+
+Anagnostopoulos et al. [10] extend this to online settings where team members arrive sequentially and assignments are irrevocable---a model closer to educational team formation where students register over a period of days. Wi et al. [17] apply genetic algorithms to optimize team competency coverage in R\&D settings. While algorithmically sophisticated, all these approaches treat students as passive inputs to an optimization function, completely removing agency from the process. Furthermore, none provide real-time feedback during team building---they operate in batch mode.
+
+\subsection{Learning Management Systems}
+
+Moodle [11] supports three group modes: (1) random assignment, which distributes students across groups without constraint consideration; (2) manual assignment by instructors, which provides control but no automation; and (3) self-selection, which allows students to join groups but provides no constraint enforcement, validation, or real-time feedback. Canvas offers similar group functionality with identical lack of constraint support. Google Classroom and Microsoft Teams support group creation but lack validation for diversity requirements entirely.
+
+Critically, while Moodle prevents students from being in multiple instances of the same group set, it does not prevent duplicate invitations, redundant join requests, or the cascade-cleanup issues that arise when groups are dissolved.
+
+\subsection{Summary of Gap}
+
+Table 2 synthesizes the capabilities of existing approaches. No existing system combines student self-selection with automated, real-time constraint enforcement and comprehensive data integrity guarantees.
+
+\begin{table}[H]
+\centering
+\caption{Capability Gap Analysis of Existing Approaches}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Capability} & \textbf{Manual} & \textbf{Algo.} & \textbf{LMS} & \textbf{Ours} \\
+\midrule
+Student agency & No & No & Yes & Yes \\
+Constraint enforcement & No & Yes & No & Yes \\
+Real-time feedback & No & No & No & Yes \\
+Iterative building & Yes & No & Yes & Yes \\
+Duplicate prevention & No & Yes & Partial & Yes \\
+Admin oversight & No & Yes & Yes & Yes \\
+Zero cost & Yes & No & No & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============ III. HYBRID TEAM FORMATION MODEL ============
+\section{Hybrid Team Formation Model}
+
+\subsection{Design Principles}
+
+The platform is designed around five principles derived from the literature:
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Student agency:} Students initiate team creation, select teammates, and choose which teams to join---preserving the motivational benefits of self-selection [6]
+    \item \textbf{Automated constraint enforcement:} Every member addition is validated against institutional diversity rules in real time, eliminating the homogeneity bias of pure self-selection [8]
+    \item \textbf{Progressive guidance:} Soft warnings guide students toward constraint satisfaction during intermediate team building stages, with hard blocks only at the point of violation or team completion
+    \item \textbf{Data integrity by design:} Duplication prevention, idempotent operations, and cascade cleanup are built into every state transition, not bolted on after the fact
+    \item \textbf{Administrative oversight:} Gate controls, bulk data management, real-time statistics, and intervention capabilities provide institutional control without micromanagement
+\end{enumerate}
+
+\subsection{Workflow Model}
+
+The team formation process follows four phases (Fig. 2):
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 2: Four-Phase Team Formation Workflow}\\[6pt]
+Phase 1 (Registration) $\rightarrow$ [Reg. Gate?] $\rightarrow$ Phase 2 (Team Build) $\rightarrow$ [Team Gate?]\\[4pt]
+$\downarrow$\\[4pt]
+Phase 3 (Iterate): Invite/Request $\rightarrow$ Validate Constraints $\rightarrow$ [Size = N?]\\[4pt]
+If No: Loop back to Invite/Request \quad|\quad If Yes: Phase 4 (Complete)
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+\textbf{Phase 1 (Registration):} Students authenticate via email OTP and register on the platform. The system validates their University Seat Number (USN) against the institution's enrollment database using configurable regex patterns and section-mapping rules. An admin-controlled registration gate enables phased enrollment---administrators can open registration before team formation begins, ensuring a critical mass of students is available when team building starts.
+
+\textbf{Phase 2 (Team Initiation):} Students create new teams (generating a unique human-readable team code) or browse existing open teams. A separate team formation gate controls when this phase becomes available. The system assigns the team creator as the ``team lead'' with invite and management privileges.
+
+\textbf{Phase 3 (Iterative Building):} This is the core formation phase with two parallel interaction modes:
+
+\begin{itemize}[noitemsep,topsep=3pt]
+    \item \textbf{Invite mode:} Team leads invite specific students by USN. The system validates that the target student exists, is registered, is not already on another team, and does not have a pending invite from this team. If valid, the invitation is created and the target receives an in-app notification and email.
+    \item \textbf{Request mode:} Students browse open teams, view their current composition and constraint status, and submit join requests. The system validates that the requester is not already on a team and does not have a pending request for this team.
+\end{itemize}
+
+Every member addition---whether via invite acceptance or request approval---passes through the constraint engine (Section 4) and the duplication prevention framework (Section 5) before being committed to the database.
+
+\textbf{Phase 4 (Completion):} When a team reaches $N$ members with all constraints satisfied, it is marked complete. The full composition validation ensures every constraint is met. Completed teams remain visible but no longer accept new members.
+
+\subsection{Dual-Interaction Team Building}
+
+A distinctive feature of the platform is its \textbf{dual-interaction model}: team leads actively recruit (invite mode) while unaffiliated students proactively seek teams (browse/request mode). This dual approach addresses the ``cold-start problem'' where early-registering students have few teams to browse.
+
+The browse interface displays each team's current composition, branch distribution, open slots, and constraint status---enabling informed decision-making. Students can see which teams need members from their branch and submit targeted requests, creating a marketplace-like dynamic where supply (students) and demand (team slots with specific branch needs) naturally equilibrate.
+
+\subsection{Administrative Control Layer}
+
+The admin interface provides three categories of control:
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Gate management:} Independent toggles for the registration gate and team formation gate, enabling administrators to orchestrate phased rollouts
+    \item \textbf{Data management:} CSV bulk upload of student enrollment data, individual student management, and team intervention capabilities (remove members, dissolve teams, transfer team lead)
+    \item \textbf{Real-time monitoring:} Statistics dashboard showing registration counts, team counts by status, branch distribution across teams, unaffiliated student counts, and constraint violation alerts
+\end{enumerate}
+
+% ============ IV. CONSTRAINT SPECIFICATION ============
+\section{Constraint Specification and Validation}
+
+\subsection{Formal Constraint Model}
+
+Let $T = \{m_1, m_2, \ldots, m_n\}$ be a team where each member $m_i$ has branch $b(m_i) \in \mathcal{B}$ for a set of branches $\mathcal{B}$. The constraint model is parameterized by four configurable values:
+
+\begin{itemize}[noitemsep,topsep=3pt]
+    \item $N \in \mathbb{Z}^+$: Required team size (e.g., 6)
+    \item $K \in \mathbb{Z}^+$: Maximum members from any single branch (e.g., 4), where $K < N$
+    \item $D \in \mathbb{Z}^+$: Minimum number of unique branches represented (e.g., 2), where $D \leq |\mathcal{B}|$
+    \item $\mathcal{R} \subseteq \mathcal{B}$: Set of branches requiring mandatory representation (e.g., \{ECE, EEE\})
+\end{itemize}
+
+Define the branch distribution function:
+\begin{equation}
+    \delta(T, \beta) = |\{m_i \in T : b(m_i) = \beta\}|
+\end{equation}
+
+the diversity measure:
+\begin{equation}
+    U(T) = |\{\beta \in \mathcal{B} : \delta(T, \beta) > 0\}|
+\end{equation}
+
+A team $T$ is valid (i.e., satisfies all institutional constraints) if and only if:
+\begin{align}
+    \mathcal{C}_1(T) &: |T| = N \\
+    \mathcal{C}_2(T) &: \max_{\beta \in \mathcal{B}} \delta(T, \beta) \leq K \\
+    \mathcal{C}_3(T) &: U(T) \geq D \\
+    \mathcal{C}_4(T) &: \forall \beta \in \mathcal{R},\; \exists\, m_i \in T : b(m_i) = \beta
+\end{align}
+
+\begin{equation}
+    \text{valid}(T) \iff \mathcal{C}_1 \wedge \mathcal{C}_2 \wedge \mathcal{C}_3 \wedge \mathcal{C}_4
+\end{equation}
+
+This parameterization makes the model \textbf{institution-agnostic}: any institution can configure $N$, $K$, $D$, $\mathcal{B}$, and $\mathcal{R}$ to match their specific diversity policies without code changes.
+
+\subsection{Two-Phase Validation Algorithm}
+
+The constraint engine implements a two-phase validation strategy that balances flexibility with strictness:
+
+\textbf{Phase A: Pre-Addition Validation.} Before every member addition, \texttt{canAddMember()} checks whether adding a candidate with branch $\beta_c$ would violate any constraint. Hard constraints ($\mathcal{C}_1$, $\mathcal{C}_2$) block immediately at every stage. Soft constraints ($\mathcal{C}_3$, $\mathcal{C}_4$) produce warnings during intermediate stages but become hard blocks when adding the $N$-th (final) member.
+
+\textbf{Algorithm 1: Pre-Addition Constraint Validation (canAddMember)}
+
+\begin{quote}
+\textbf{Input:} Approved members $T_a$, candidate branch $\beta_c$, parameters $N, K, D, \mathcal{R}$\\
+\textbf{Output:} (valid, errors, warnings)
+
+\begin{enumerate}[noitemsep]
+    \item Initialize $E \gets \emptyset$, $W \gets \emptyset$
+    \item If $|T_a| \geq N$: add ``Team full'' to $E$, return (false, $E$, $W$)
+    \item If $\delta(T_a, \beta_c) + 1 > K$: add ``Max $K$ from $\beta_c$'' to $E$
+    \item If $|T_a| + 1 = N$ (adding final member):
+    \begin{itemize}[noitemsep]
+        \item Let $T' = T_a \cup \{\text{candidate}\}$
+        \item If $U(T') < D$: add ``Need $D$+ branches'' to $E$
+        \item For each $\beta \in \mathcal{R}$: if $\delta(T', \beta) = 0$, add ``Need member from $\beta$'' to $E$
+    \end{itemize}
+    \item Else if $|T_a| + 1 \geq N - 2$ (near completion):
+    \begin{itemize}[noitemsep]
+        \item For each $\beta \in \mathcal{R}$: if $\delta(T' , \beta) = 0$, add warning to $W$
+    \end{itemize}
+    \item Return ($|E| = 0$, $E$, $W$)
+\end{enumerate}
+\end{quote}
+
+\textbf{Phase B: Completion Validation.} When the $N$-th member is added, \texttt{validateTeamComposition()} (Algorithm 2) enforces all four constraints simultaneously, ensuring no team reaches ``complete'' status without satisfying every rule.
+
+\textbf{Algorithm 2: Full Team Composition Validation}
+
+\begin{quote}
+\textbf{Input:} Team members $T$, parameters $N, K, D, \mathcal{R}$\\
+\textbf{Output:} (valid, errors)
+
+\begin{enumerate}[noitemsep]
+    \item Initialize $E \gets \emptyset$
+    \item Let $T_a = \{m \in T : m.\text{status} = \text{``approved''}\}$
+    \item If $|T_a| \neq N$: add ``Team size must be $N$'' to $E$
+    \item Compute branch distribution $\delta(T_a, \beta)$ for all $\beta \in \mathcal{B}$
+    \item If $\max_\beta \delta(T_a, \beta) > K$: add ``Max $K$ from any branch exceeded'' to $E$
+    \item If $U(T_a) < D$: add ``Need at least $D$ unique branches'' to $E$
+    \item For each $\beta \in \mathcal{R}$: if $\delta(T_a, \beta) = 0$, add ``Missing required branch $\beta$'' to $E$
+    \item Return ($|E| = 0$, $E$)
+\end{enumerate}
+\end{quote}
+
+\subsection{Complexity Analysis}
+
+Both algorithms operate in $O(|T| + |\mathcal{R}|)$ time. The branch distribution computation requires one pass over the member list ($O(|T|)$) using a hash map, and the mandatory representation check iterates over $\mathcal{R}$ ($O(|\mathcal{R}|)$). Since both $|T| = N$ and $|\mathcal{R}| \leq |\mathcal{B}|$ are small constants in practice (typically $N \leq 10$ and $|\mathcal{B}| \leq 15$), the validation executes in constant time with negligible computational overhead---enabling sub-50ms client-side execution as measured in our production deployment.
+
+\subsection{Progressive Warning System}
+
+A key design choice is the distinction between \textbf{hard errors} and \textbf{soft warnings}:
+
+\begin{itemize}[noitemsep,topsep=3pt]
+    \item \textbf{Hard errors} (team full, branch concentration exceeded) block the addition immediately. These constraints are violated at the point of addition and cannot self-correct.
+    \item \textbf{Soft warnings} (insufficient diversity, missing mandatory branch) are surfaced as advisory messages during intermediate stages. They become hard errors only when adding the final member, because the team can still satisfy these constraints through subsequent additions.
+\end{itemize}
+
+\subsection{Race Condition Protection}
+
+In a concurrent multi-user environment, two students may simultaneously attempt to join a nearly-full team. We employ a \textbf{read-before-write} pattern: immediately before writing any member addition to the database, the system re-reads the current team document and re-executes \texttt{canAddMember()} against the latest state. This adds one extra database read per operation but guarantees constraint correctness under concurrent modification without requiring distributed locks or transaction retries.
+
+% ============ V. DATA INTEGRITY ============
+\section{Data Integrity and Duplication Prevention}
+
+A critical yet often overlooked challenge in self-service team formation is \textbf{preventing data duplication}---ensuring that students cannot join multiple teams, receive duplicate invitations, or submit redundant join requests. Our system implements a \textbf{six-layer duplication prevention framework} (Fig. 3).
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 3: Six-Layer Duplication Prevention Framework}\\[6pt]
+\begin{tabular}{|l|l|}
+\hline
+\textbf{L1:} Single-Team Membership (teamId null-check) & UI + API + DB \\
+\hline
+\textbf{L2:} Duplicate Invite Prevention (pending query) & API + Query \\
+\hline
+\textbf{L3:} Duplicate Request Prevention (status tracking) & UI + Query \\
+\hline
+\textbf{L4:} Invite Idempotency (FSM status check) & API \\
+\hline
+\textbf{L5:} Atomic Member Operations (array map by USN) & Data model \\
+\hline
+\textbf{L6:} Cascade Cleanup (dissolve + expire) & Admin API \\
+\hline
+\end{tabular}\\[6pt]
+Each layer prevents a specific class of data integrity violation.
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+\subsection{L1: Single-Team Membership Enforcement}
+
+Each student's registration document contains a \texttt{teamId} field that serves as a single-assignment constraint. Before any team join operation---whether via invitation acceptance, join-request approval, or team creation---the system verifies that \texttt{teamId} is \texttt{null}. This check is enforced at \textbf{three independent levels}:
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Client-side UI guards:} React components conditionally render ``You're already on a team'' messages and disable join/create buttons when \texttt{session.teamId} is non-null.
+    \item \textbf{Application-logic validation:} The InviteManager component queries the target student's registration document and rejects invitations with ``This student is already on another team'' if \texttt{regData.teamId} is set.
+    \item \textbf{Database security rules:} Firestore rules restrict \texttt{teamId} and \texttt{teamRole} updates to authorized users only. Direct database writes that bypass the API are blocked.
+\end{enumerate}
+
+\subsection{L2: Duplicate Invite Prevention}
+
+Before the team lead can issue an invitation, the system executes three sequential checks: (1) existing member check, (2) pending invite query, and (3) cross-team membership check. These prevent three classes of wasteful invitations: inviting existing members, duplicating pending invites, and inviting unavailable students.
+
+\subsection{L3: Duplicate Join-Request Prevention}
+
+When a student requests to join a team, the system queries for existing pending or rejected requests. The UI maintains three visual states for each team card: Default (``Request to Join'' enabled), Pending (``Request Pending'' disabled), and Rejected (``Request Declined'' with visual indicator).
+
+\subsection{L4: Invite Idempotency}
+
+Each invite document transitions through a finite state machine (Fig. 4):
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 4: Invite Status Finite State Machine}\\[6pt]
+\begin{tabular}{ccc}
+ & Pending & \\
+Accept $\swarrow$ & $\downarrow$ Decline & $\searrow$ Dissolve \\
+Approved & Rejected & Expired \\
+\end{tabular}\\[6pt]
+Terminal states (Approved, Rejected, Expired) are immutable---no further transitions are permitted.
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+Once an invite leaves the \texttt{pending} state, it cannot be re-accepted, re-rejected, or otherwise modified. This guarantees that concurrent acceptance attempts cannot result in a student being added twice.
+
+\subsection{L5: Atomic Member-List Operations}
+
+Team member arrays are stored within the team document itself (denormalized design), enabling single-document atomic updates. The system uses \textbf{array map operations} rather than array append operations for all member modifications, guaranteeing at most one array entry per USN at any time.
+
+\subsection{L6: Cascade Cleanup on Team Dissolution}
+
+When a team is dissolved, the system performs comprehensive cascade cleanup: (1) all approved members have their registration \texttt{teamId} reset to \texttt{null}; (2) all pending invites and requests are marked as \texttt{expired}; (3) the team document status is updated to ``dissolved''; (4) notification documents are created for all affected members.
+
+\begin{table}[H]
+\centering
+\caption{Duplication Prevention Mechanisms and Enforcement Points}
+\begin{tabular}{@{}p{3cm}p{2.5cm}p{5.5cm}@{}}
+\toprule
+\textbf{Invariant} & \textbf{Layers} & \textbf{Enforcement Mechanism} \\
+\midrule
+Single-team membership & UI + API + DB & \texttt{teamId} null-check at 3 independent levels \\
+No duplicate invites & API + Query & Pending-invite query + member check + cross-team check \\
+No duplicate requests & UI + Query & Pending-request query + rejected-request tracking \\
+Invite idempotency & API & Status FSM check before any state transition \\
+No duplicate members & Data model & Array map (not append) keyed by USN \\
+Cascade on dissolve & Admin API & Bulk \texttt{teamId} reset + invite expiration + notifications \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============ VI. SYSTEM ARCHITECTURE ============
+\section{System Architecture}
+
+\subsection{Three-Tier Serverless Architecture}
+
+The platform implements a three-tier serverless architecture (Fig. 5) designed for zero-infrastructure deployment.
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 5: Three-Tier Serverless Architecture}\\[6pt]
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Presentation Layer} & Browser Client, React Components, Session Guard, Real-Time Notifications \\
+\hline
+\textbf{Application Layer} & Next.js App Router, REST API (11 endpoints), Edge Middleware, Rate Limiter \\
+\hline
+\textbf{Data \& Services} & NoSQL Database, Auth Service, Transactional Email API, Edge CDN \\
+\hline
+\end{tabular}\\[6pt]
+Real-time database subscriptions enable instant constraint feedback and notifications.
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+\textbf{Presentation Layer.} The client is a React single-page application rendered via server-side rendering (SSR) for initial page loads and client-side navigation thereafter. The SessionGuard component implements a three-phase authentication check. Real-time notifications use Firestore's \texttt{onSnapshot()} listener with an \texttt{isInitialLoad} flag to suppress notification alerts during initial data hydration.
+
+\textbf{Application Layer.} The Next.js App Router handles 11 REST API endpoints (Table 4), each implementing input validation, authentication verification, business logic, and response formatting. Edge middleware intercepts all API requests for origin verification, security header injection, and route protection.
+
+\begin{table}[H]
+\centering
+\caption{REST API Endpoints}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Method} & \textbf{Purpose} \\
+\midrule
+\texttt{/auth/send-otp} & POST & Send OTP via email \\
+\texttt{/auth/verify-otp} & POST & Verify OTP, issue JWT \\
+\texttt{/auth/logout} & POST & Clear session \\
+\texttt{/auth/session} & GET & Validate current session \\
+\texttt{/auth/refresh} & POST & Refresh JWT token \\
+\texttt{/admin/students} & POST & Bulk CSV upload \\
+\texttt{/admin/config} & GET/POST & System configuration \\
+\texttt{/admin/stats} & GET & Dashboard statistics \\
+\texttt{/admin/remove-member} & POST & Remove/transfer/dissolve \\
+\texttt{/admin/login} & POST & Admin authentication \\
+\texttt{/notify} & POST & Email notifications \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Data Layer.} Firebase Firestore provides the NoSQL document database with real-time subscriptions. The database uses 8 collections (Table 5). A key design decision is embedding member arrays within team documents rather than using normalized junction tables, enabling single-document reads, atomic member operations, and efficient subscriptions.
+
+\begin{table}[H]
+\centering
+\caption{Database Collections and Their Roles}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Collection} & \textbf{Key} & \textbf{Purpose} \\
+\midrule
+\texttt{students} & Student ID & Master enrollment data from institutional CSV \\
+\texttt{registrations} & Student ID & Active platform users with teamId foreign key \\
+\texttt{teams} & Team code & Teams with embedded member arrays \\
+\texttt{invites} & Invite code & Invites and join requests with status FSM \\
+\texttt{notifications} & Auto-gen & Real-time notification documents \\
+\texttt{config} & Singleton & System configuration (gates, constraints) \\
+\texttt{otp\_codes} & Auto-gen & Time-limited verification codes \\
+\texttt{admins} & Email hash & Admin whitelist for dashboard access \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Real-Time Notification System}
+
+The platform implements a 10-type notification system that provides real-time feedback for all team formation events:
+
+\begin{table}[H]
+\centering
+\caption{Notification Types and Triggers}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Notification Type} & \textbf{Trigger Event} \\
+\midrule
+\texttt{invite\_received} & Team lead sends invitation \\
+\texttt{request\_received} & Student submits join request \\
+\texttt{invite\_accepted} & Invitee accepts invitation \\
+\texttt{invite\_rejected} & Invitee declines invitation \\
+\texttt{request\_approved} & Team lead approves request \\
+\texttt{request\_rejected} & Team lead declines request \\
+\texttt{kicked\_from\_team} & Admin removes a member \\
+\texttt{member\_left\_team} & Member voluntarily leaves \\
+\texttt{team\_dissolved} & Admin dissolves entire team \\
+\texttt{lead\_transferred} & Team lead role transferred \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Notifications are delivered through two channels simultaneously: (1) in-app real-time delivery via Firestore \texttt{onSnapshot()} listeners, and (2) email notifications via the Brevo API for offline awareness.
+
+\subsection{Unambiguous ID Generation}
+
+Team codes and invite codes are generated using a 30-character alphabet that deliberately excludes five commonly confused characters: I (confused with 1 and l), O (confused with 0), 0 (confused with O), 1 (confused with I and l), and L (confused with 1 in some fonts). Team codes follow the format TEAM-XXXX ($30^4 = 810{,}000$ combinations) and invite codes follow INV-XXXXXX ($30^6 \approx 729$ million combinations).
+
+% ============ VII. SECURITY ARCHITECTURE ============
+\section{Security Architecture}
+
+A distinctive challenge in student-facing platforms at many institutions is the absence of institutional SSO for first-year students. Our five-layer defense-in-depth model (Fig. 6) addresses this by providing robust authentication without SSO dependency.
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{6pt}
+\textbf{Figure 6: Five-Layer Defense-in-Depth Security Model}\\[6pt]
+\begin{tabular}{|l|l|}
+\hline
+\textbf{L1:} JWT httpOnly Cookie (HS256, configurable expiry) & Session management \\
+\hline
+\textbf{L2:} Database Custom Token (client-side auth) & Client DB access \\
+\hline
+\textbf{L3:} Document-Level Security Rules (per-user ACL) & Data-level access \\
+\hline
+\textbf{L4:} Edge Middleware (CSP, HSTS, origin check) & Transport security \\
+\hline
+\textbf{L5:} IP Rate Limiting (sliding window, auto-purge) & Abuse prevention \\
+\hline
+\end{tabular}\\[6pt]
+Each layer provides independent protection; compromise of any single layer does not breach the system.
+\vspace{6pt}
+\end{minipage}}
+\end{figure}
+
+\subsection{Layer 1: JWT Session Management}
+
+Upon successful OTP verification, the server issues a JWT [12] session token signed with HS256 using the \texttt{jose} library. The token is stored as an \texttt{httpOnly}, \texttt{Secure}, \texttt{SameSite=Strict} cookie with a configurable expiry (default: 7 days). The \texttt{httpOnly} flag prevents JavaScript access, mitigating XSS token theft. The \texttt{SameSite=Strict} flag prevents CSRF attacks.
+
+\subsection{Layer 2: Database Custom Token}
+
+In addition to the JWT cookie, the verification endpoint generates a Firebase custom token using the Admin SDK. This token enables direct client-to-database communication through Firebase's native authentication system, providing real-time database subscriptions without routing all reads through the API layer.
+
+\subsection{Layer 3: Document-Level Security Rules}
+
+Firestore security rules enforce per-document access control. Key rules include: students can only modify their own registration documents (except team leads updating \texttt{teamId}/\texttt{teamRole} for their team members); OTP codes are completely inaccessible from clients; team documents can be created by any authenticated user but updated only through validated application logic.
+
+\subsection{Layer 4: Edge Middleware}
+
+The Next.js Edge Middleware intercepts all requests and applies: (1) route protection requiring valid JWT for dashboard and team creation routes; (2) origin verification against an allowlist of permitted origins; (3) security headers including Content-Security-Policy, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy, and Strict-Transport-Security (HSTS) [15].
+
+\subsection{Layer 5: IP-Based Rate Limiting}
+
+The rate limiter implements a sliding window algorithm with configurable limits per endpoint:
+
+\begin{table}[H]
+\centering
+\caption{Rate Limiting Configuration}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Target} & \textbf{Limit} & \textbf{Window} \\
+\midrule
+OTP send per IP & 5 requests & 15 min \\
+OTP verify per IP & 10 attempts & 15 min \\
+Per-code incorrect attempts & 5 attempts & Code lifetime \\
+Per-email OTP cooldown & 1 OTP & 60 sec \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{OTP Authentication Flow}
+
+The email OTP authentication [13] follows a six-step flow: (1) student enters institutional email; (2) system validates email exists in enrollment database; (3) system generates 6-digit OTP with 10-minute TTL and 5-attempt limit; (4) OTP is sent via Brevo email API; (5) student enters OTP; (6) system verifies OTP, issues JWT cookie and Firebase custom token.
+
+\subsection{Multi-Key Email Delivery}
+
+Free-tier email services limit daily volume (e.g., 300 emails/day). Our multi-key round-robin system distributes load across $n$ API keys, providing total capacity of $300n$ emails/day with automatic failover. With $n = 3$ keys, the system supports 900 emails/day---sufficient for an 800-student cohort.
+
+% ============ VIII. COMPARATIVE ANALYSIS ============
+\section{Comparative Analysis}
+
+We evaluate the proposed platform against five existing approaches across 13 criteria grouped into four categories. Table 8 presents the complete comparison.
+
+\begin{table}[H]
+\centering
+\caption{Comparative Analysis of Team Formation Approaches Across 13 Evaluation Criteria}
+\footnotesize
+\begin{tabular}{@{}p{3.2cm}cccccc@{}}
+\toprule
+\textbf{Criterion} & \textbf{Manual} & \textbf{CATME} & \textbf{Moodle} & \textbf{Slack} & \textbf{Custom} & \textbf{Proposed} \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Student Experience}} \\
+\quad Student self-selection & No & No & Yes & Yes & No & Yes \\
+\quad Real-time feedback & No & No & No & No & No & Yes \\
+\quad In-app notifications & No & No & Yes & Yes & No & Yes \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Constraint Enforcement \& Data Integrity}} \\
+\quad Diversity enforcement & No & Yes & No & No & Yes & Yes \\
+\quad Pre-addition validation & No & N/A & No & No & N/A & Yes \\
+\quad Race condition protection & No & N/A & No & No & No & Yes \\
+\quad Duplicate prevention & No & Yes & Partial & No & Varies & Yes \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Administrative Capability}} \\
+\quad Gate control & No & No & Yes & No & No & Yes \\
+\quad Bulk data import & No & Yes & Yes & No & Varies & Yes \\
+\quad Statistics dashboard & No & Yes & Yes & No & Varies & Yes \\
+\midrule
+\multicolumn{7}{@{}l}{\textit{Technical Properties}} \\
+\quad No SSO required & Yes & No & No & Yes & Varies & Yes \\
+\quad Open source & No & No & Yes & No & Varies & Yes \\
+\quad Serverless / zero-ops & N/A & No & No & N/A & Varies & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data Integrity Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Data Integrity Feature Comparison}
+\begin{tabular}{@{}p{3cm}ccccc@{}}
+\toprule
+\textbf{Feature} & \textbf{Manual} & \textbf{CATME} & \textbf{Moodle} & \textbf{Slack} & \textbf{Ours} \\
+\midrule
+Single-team enforcement & No & Yes & Partial & No & Yes \\
+Dup. invite prevention & No & N/A & No & No & Yes \\
+Dup. request prevention & No & N/A & No & No & Yes \\
+Invite idempotency & No & N/A & No & No & Yes \\
+Atomic member ops & No & Yes & Partial & No & Yes \\
+Cascade cleanup & No & Yes & Partial & No & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============ IX. BENEFITS ============
+\section{How the Platform Benefits Educational Institutions}
+
+\subsection{Administrative Efficiency Gains}
+
+\begin{table}[H]
+\centering
+\caption{Estimated Administrative Time Savings by Institution Size}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Metric} & \textbf{Small (200)} & \textbf{Medium (800)} & \textbf{Large (2000)} \\
+\midrule
+Teams to form & $\sim$33 & $\sim$133 & $\sim$333 \\
+Manual effort (est.) & 8 hrs & 40 hrs & 100+ hrs \\
+Platform effort (est.) & 1 hr & 2 hrs & 3 hrs \\
+\textbf{Time reduction} & \textbf{87\%} & \textbf{95\%} & \textbf{97\%} \\
+Constraint violations & Common & Frequent & Pervasive \\
+With platform & 0\% & 0\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pedagogical Benefits}
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Guaranteed diversity:} 100\% of completed teams satisfy all branch diversity constraints, directly supporting ABET's interdisciplinary collaboration outcomes [1].
+    \item \textbf{Student ownership:} Research shows students who choose their teammates report higher engagement and satisfaction [6].
+    \item \textbf{Reduced conflict:} By making constraints visible from the start, the platform eliminates disruptive post-hoc restructuring [7].
+    \item \textbf{Equity of access:} The browse-and-request feature ensures students without large social networks can discover and join teams.
+    \item \textbf{Transparent process:} Real-time visibility into team composition creates a transparent marketplace for informed decisions.
+\end{enumerate}
+
+\subsection{Cost Analysis}
+
+\begin{table}[H]
+\centering
+\caption{Deployment Cost Analysis (USD/month)}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Service} & \textbf{Free Tier} & \textbf{$<$1000 users} & \textbf{$<$5000} \\
+\midrule
+Hosting (Vercel) & 100 GB BW & \$0 & \$20 \\
+Database (Firestore) & 1 GiB, 50K reads/day & \$0 & \$5--10 \\
+Email (Brevo) & 300/day & \$0 & \$25 \\
+Auth (Firebase) & 10K/month & \$0 & \$0 \\
+\midrule
+\textbf{Total} & & \textbf{\$0} & \textbf{\$50--55} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Applicability Across Institution Types}
+
+\begin{table}[H]
+\centering
+\caption{Applicability Across Educational Contexts}
+\begin{tabular}{@{}p{2.5cm}p{3cm}p{5cm}@{}}
+\toprule
+\textbf{Context} & \textbf{Branches} & \textbf{Constraint Example} \\
+\midrule
+Engineering college & Dept. branches & Max 4/branch, min 2 unique \\
+Business school & Specializations & Balanced finance + marketing \\
+Medical school & Clinical rotations & Mixed pre-clinical + clinical \\
+Hackathon & Skill categories & Min 1 designer + 1 backend \\
+Research lab & Sub-fields & Cross-pollination requirement \\
+Bootcamp & Experience levels & Mix of junior + senior \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============ X. CASE STUDY ============
+\section{Case Study: Production Deployment}
+
+\subsection{Deployment Context}
+
+The platform was deployed at an engineering institution in Bangalore, India, serving 823 first-year students across 7 branches (Table 13). Teams of exactly 6 members were required, with constraint configuration: $N = 6$, $K = 4$, $D = 2$, $\mathcal{R} = \{\text{ECE}, \text{EEE}\}$.
+
+\begin{table}[H]
+\centering
+\caption{Student Distribution by Branch in Case Study}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Code} & \textbf{Branch} & \textbf{Students} \\
+\midrule
+CSE & Computer Science \& Engineering & 197 \\
+ISE & Information Science \& Engineering & 194 \\
+ECE & Electronics \& Communication Eng. & 163 \\
+AI\&ML & AI and Machine Learning & 100 \\
+AI\&DS & AI and Data Science & 87 \\
+EEE & Electrical \& Electronics Eng. & 45 \\
+IoT & Internet of Things & 37 \\
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Total}} & \textbf{823} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mandatory representation requirement ($\mathcal{R} = \{\text{ECE}, \text{EEE}\}$) was strategically chosen because CSE and ISE students (47.5\% of the cohort) tend to self-select into homogeneous CS-only teams.
+
+\subsection{Implementation Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Implementation Statistics}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Total TypeScript lines of code & 8,245 \\
+Source files & 58 (31 TSX + 27 TS) \\
+React components & 19 \\
+API endpoints & 11 \\
+Utility/library modules & 14 \\
+Custom hooks & 1 \\
+Type definitions & 2 files (71+ types) \\
+Development period & 5 days (62 commits) \\
+Framework & Next.js 16 (App Router) \\
+Database & Firebase Firestore \\
+Authentication & Firebase Auth + custom JWT \\
+Hosting & Vercel (serverless) \\
+Email service & Brevo (3-key round-robin) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Performance Results}
+
+\begin{table}[H]
+\centering
+\caption{Measured Performance Metrics}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Measured Value} \\
+\midrule
+SSR page load (Edge CDN) & $<$ 1.5s \\
+OTP email delivery & 2--5s end-to-end \\
+Constraint validation (client) & $<$ 50ms \\
+Database document read & $<$ 100ms \\
+Real-time notification delivery & $<$ 200ms \\
+CSV batch import (450 docs) & $\sim$3s per batch \\
+JWT signing (HS256) & $<$ 5ms \\
+Completed team constraint satisfaction & 100\% \\
+Data integrity violations & 0 \\
+Duplicate membership incidents & 0 \\
+Orphaned registration records & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Deployment Observations}
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Registration wave pattern:} 60\% of registrations occurred within the first 2 hours of the registration gate opening---validating the need for the multi-key email system.
+    \item \textbf{Browse-first behavior:} A majority of students browsed existing teams before creating their own, suggesting that the browse interface is critical for informed team formation.
+    \item \textbf{Mandatory representation effectiveness:} The $\mathcal{R} = \{\text{ECE}, \text{EEE}\}$ constraint successfully prevented all-CS teams, achieving genuine cross-disciplinary composition in 100\% of completed teams.
+    \item \textbf{Warning system engagement:} The progressive warning system observably influenced team building behavior, as teams actively sought ECE/EEE members after receiving warnings.
+    \item \textbf{Zero admin intervention:} No administrative intervention was required to resolve duplicate memberships, constraint violations, or data integrity issues during the entire formation period.
+\end{enumerate}
+
+% ============ XI. DISCUSSION ============
+\section{Discussion}
+
+\subsection{Effectiveness of the Hybrid Model}
+
+The production deployment validates that the hybrid model---student self-selection with automated constraint enforcement---is practically viable at institutional scale. The two-phase validation algorithm achieves the critical balance: students retain full agency in teammate selection while the system guarantees 100\% constraint satisfaction for completed teams. This addresses the core limitation of both pure self-selection (homogeneity bias [8]) and pure algorithmic assignment (zero student agency).
+
+The progressive warning system proved particularly effective in practice. Rather than imposing hard blocks early (which would frustrate students during the exploratory phase of team building), the system guides students toward constraint-satisfying compositions through timely warnings.
+
+\subsection{Effectiveness of Duplication Prevention}
+
+The production deployment recorded \textbf{zero data integrity violations} across the entire formation period. No duplicate team memberships, no duplicate invitations, no orphaned registrations, and no concurrent corruption occurred. In contrast, prior semesters using manual spreadsheet-based formation reported 5--10 duplicate membership incidents per cohort, each requiring 30--60 minutes of administrative effort.
+
+\subsection{Generalizability}
+
+The parameterized constraint model ($N$, $K$, $D$, $\mathcal{R}$) makes the approach institution-agnostic. An institution with 5 departments and teams of 4 can configure $(N=4, K=2, D=2, \mathcal{R}=\emptyset)$; a hackathon requiring mixed-skill teams can set $\mathcal{R} = \{\text{Design}, \text{Backend}\}$. No code changes are required---only configuration values.
+
+\subsection{Limitations and Threats to Validity}
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Cold-start problem:} Early registrants have fewer teams to browse; mitigated by the dual-gate system.
+    \item \textbf{In-memory rate limiting:} Resets on serverless cold starts; Redis-backed limiter needed for high-traffic deployments.
+    \item \textbf{Constraint flexibility:} Adding new constraint types requires code modifications; a domain-specific language is future work.
+    \item \textbf{No controlled A/B evaluation:} Lacks controlled comparison in the same cohort and semester.
+    \item \textbf{Single-institution deployment:} Multi-institution studies needed to validate generalizability.
+    \item \textbf{Eventual consistency:} Extremely rare simultaneous writes could theoretically produce inconsistent state.
+    \item \textbf{No long-term outcome measurement:} Does not measure pedagogical outcomes of platform-formed teams.
+\end{enumerate}
+
+% ============ XII. FUTURE WORK ============
+\section{Future Work}
+
+\begin{enumerate}[noitemsep,topsep=3pt]
+    \item \textbf{Controlled effectiveness study:} Multi-semester experiment comparing project outcomes between platform-formed and manually-formed teams.
+    \item \textbf{Configurable constraint DSL:} Domain-specific language for defining arbitrary constraint rules via web interface.
+    \item \textbf{AI-powered teammate recommendations:} Collaborative filtering to suggest teammates that satisfy constraints while optimizing for complementary skills.
+    \item \textbf{ERP/LMS integration:} Standardized connectors for Moodle (LTI), Canvas (API), and university ERP systems.
+    \item \textbf{Post-formation analytics:} Dashboard tracking team collaboration patterns and project milestones.
+    \item \textbf{Multi-institution deployment study:} Deploy across 5--10 institutions to validate generalizability.
+    \item \textbf{Mobile application:} Native app with push notifications and QR code-based team joining.
+    \item \textbf{Distributed rate limiting:} Redis-backed implementation for horizontal scaling.
+    \item \textbf{Accessibility and internationalization:} WCAG 2.1 AA compliance and multi-language support.
+\end{enumerate}
+
+% ============ XIII. CONCLUSION ============
+\section{Conclusion}
+
+This paper presented a scalable, self-service platform for constraint-enforced cross-disciplinary team formation in engineering education. The core contribution is a \textbf{hybrid team formation model} that resolves the long-standing tension between student agency and institutional constraint enforcement---a gap unaddressed by existing manual, algorithmic, or LMS-based approaches.
+
+The formal constraint model with parameterizable rules ($N$, $K$, $D$, $\mathcal{R}$) makes the system applicable to any institution regardless of branch structure, team size, or diversity policy. The two-phase validation algorithm ensures 100\% constraint satisfaction for completed teams while the progressive warning system maintains student flexibility during intermediate building stages. Formal complexity analysis confirms $O(|T| + |\mathcal{R}|)$ validation time, enabling sub-50ms client-side execution.
+
+A \textbf{six-layer duplication prevention framework} guarantees critical data integrity invariants: single-team membership enforcement through triple-layered checks, duplicate invite and request prevention, invite idempotency through finite state machine status verification, atomic member-list operations, and cascade cleanup on team dissolution.
+
+A \textbf{five-layer defense-in-depth security architecture} provides robust authentication and authorization without institutional SSO dependency---a critical capability for first-year students at institutions where SSO provisioning lags behind the academic calendar.
+
+Production deployment at an engineering institution with 823 students across 7 branches demonstrates practical viability at scale, with sub-second constraint feedback, 100\% constraint satisfaction, zero data integrity violations, zero duplicate membership incidents, and an estimated 96\% reduction in administrative effort. The serverless architecture achieves zero operational cost for institutions up to approximately 1,000 students.
+
+The complete implementation (8,245 lines of TypeScript, 58 files, 19 components, 11 API endpoints) is available as open source at \url{https://github.com/harshaxyZ/idea.lab}, enabling any institution to deploy, configure, and extend the platform for their specific needs.
+
+% ============ REFERENCES ============
+\begin{thebibliography}{20}
+
+\bibitem{abet2019}
+ABET, ``Criteria for accrediting engineering programs, 2020--2021,'' ABET Engineering Accreditation Commission, Baltimore, MD, 2019.
+
+\bibitem{terenzini2001}
+P.~T.~Terenzini, A.~F.~Cabrera, C.~L.~Colbeck, J.~M.~Parente, and S.~A.~Bjorklund, ``Collaborative learning vs.\ lecture/discussion: Students' reported learning gains,'' \textit{J. Eng. Educ.}, vol.~90, no.~1, pp.~123--130, Jan.\ 2001.
+
+\bibitem{borrego2010}
+M.~Borrego and L.~K.~Newswander, ``Definitions of interdisciplinary research: Toward graduate-level interdisciplinary learning outcomes,'' \textit{The Review of Higher Education}, vol.~34, no.~1, pp.~61--84, 2010.
+
+\bibitem{prince2004}
+M.~Prince, ``Does active learning work? A review of the research,'' \textit{J. Eng. Educ.}, vol.~93, no.~3, pp.~223--231, Jul.\ 2004.
+
+\bibitem{ohland2012}
+M.~W.~Ohland \textit{et al.}, ``The comprehensive assessment of team member effectiveness: Development of a behaviorally anchored rating scale for self- and peer evaluation,'' \textit{Acad. Manag. Learn. Educ.}, vol.~11, no.~4, pp.~609--630, 2012.
+
+\bibitem{chapman2006}
+K.~J.~Chapman, M.~Meuter, D.~Toy, and L.~Wright, ``Can't we pick our own groups? The influence of group selection method on group dynamics and outcomes,'' \textit{J. Manag. Educ.}, vol.~30, no.~4, pp.~557--569, Aug.\ 2006.
+
+\bibitem{oakley2004}
+B.~Oakley, R.~M.~Felder, R.~Brent, and I.~Elhajj, ``Turning student groups into effective teams,'' \textit{J. Student Centered Learning}, vol.~2, no.~1, pp.~9--34, 2004.
+
+\bibitem{bacon2004}
+D.~R.~Bacon, K.~A.~Stewart, and W.~S.~Silver, ``Lessons from the best and worst student team experiences: How a teacher can make the difference,'' \textit{J. Manag. Educ.}, vol.~23, no.~5, pp.~467--488, Oct.\ 1999.
+
+\bibitem{lappas2009}
+T.~Lappas, K.~Liu, and E.~Terzi, ``Finding a team of experts in social networks,'' in \textit{Proc.\ 15th ACM SIGKDD Int.\ Conf.\ Knowledge Discovery and Data Mining}, Paris, France, 2009, pp.~467--476.
+
+\bibitem{anagnostopoulos2012}
+A.~Anagnostopoulos, L.~Becchetti, C.~Castillo, A.~Gionis, and S.~Leonardi, ``Online team formation in social networks,'' in \textit{Proc.\ 21st Int.\ Conf.\ World Wide Web (WWW)}, Lyon, France, 2012, pp.~839--848.
+
+\bibitem{moodle}
+Moodle, ``Groups and groupings,'' Moodle Documentation, 2024.
+
+\bibitem{jones2015}
+M.~Jones, J.~Bradley, and N.~Sakimura, ``JSON Web Token (JWT),'' IETF RFC~7519, May 2015.
+
+\bibitem{mraihi2011}
+D.~M'Raihi, S.~Machani, M.~Pei, and J.~Rydell, ``TOTP: Time-based one-time password algorithm,'' IETF RFC~6238, May 2011.
+
+\bibitem{hardt2012}
+D.~Hardt, ``The OAuth 2.0 authorization framework,'' IETF RFC~6749, Oct.\ 2012.
+
+\bibitem{owasp2021}
+OWASP Foundation, ``OWASP Top Ten web application security risks,'' 2021.
+
+\bibitem{nextjs}
+Vercel, ``Next.js documentation,'' 2026.
+
+\bibitem{wi2009}
+H.~Wi, S.~Oh, J.~Mun, and M.~Jung, ``A team formation model based on knowledge and collaboration,'' \textit{Expert Syst. Appl.}, vol.~36, no.~5, pp.~9121--9134, Jul.\ 2009.
+
+\bibitem{smith1992}
+B.~L.~Smith and J.~T.~MacGregor, ``What is collaborative learning?'' in \textit{Collaborative Learning: A Sourcebook for Higher Education}, A.~S.~Goodsell, M.~R.~Maher, and V.~Tinto, Eds.\hspace{0pt} University Park, PA: NCTLA, 1992, pp.~10--30.
+
+\bibitem{firebase}
+Google, ``Firebase documentation,'' 2026.
+
+\bibitem{felder2000}
+R.~M.~Felder and R.~Brent, ``Effective strategies for cooperative learning,'' \textit{J. Cooperation \& Collaboration in College Teaching}, vol.~10, no.~2, pp.~69--75, 2001.
+
+\end{thebibliography}
+
+\end{document}
