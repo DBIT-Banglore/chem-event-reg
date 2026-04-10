@@ -341,6 +341,48 @@ export default function AdminPage() {
         }));
     }, [students, events]);
 
+    // ─── Export Helpers ───
+    const handleExportAllXLS = async () => {
+        const { exportToXLS } = await import("@/lib/xlsExport");
+        const allRows = studentsWithEvents.map(s => ({
+            Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
+            Branch: s.branch, Section: s.section,
+            "Event Name": s.eventName || "", "Event ID": s.eventId || "",
+        }));
+        const sheets: Record<string, string | number | null | undefined>[][] = [allRows];
+        const sheetNames = ["All Registrations"];
+        events.forEach(ev => {
+            const eventRows = studentsWithEvents
+                .filter(s => s.eventId === ev.eventId)
+                .map(s => ({
+                    Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
+                    Branch: s.branch, Section: s.section,
+                }));
+            sheets.push(eventRows);
+            sheetNames.push(ev.name.slice(0, 31));
+        });
+        exportToXLS(sheets, sheetNames, `registrations-${new Date().toISOString().split("T")[0]}.xlsx`);
+    };
+
+    const handleExportEventCSV = (eventId: string, eventName: string) => {
+        const rows = studentsWithEvents.filter(s => s.eventId === eventId);
+        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section"];
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(s =>
+                [s.name, s.usn, s.email || "", s.phone, s.branch, s.section]
+                    .map(c => `"${String(c).replace(/"/g, '""')}"`)
+                    .join(",")
+            ),
+        ].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
+
     // ─── Loading ───
     if (authLoading) {
         return (
@@ -568,18 +610,64 @@ export default function AdminPage() {
                                         <h2 style={{ fontFamily: "var(--bebas)", fontSize: "clamp(20px, 3vw, 24px)", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
                                             <CalendarDays style={{ width: 22, height: 22, color: "var(--red)" }} /> Event Registrations
                                         </h2>
-                                        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                                            {events.map((ev) => (
-                                                <div key={ev.eventId}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                                                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>{ev.name}</span>
-                                                        <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)" }}>{ev.registrationCount} / {ev.capacity}</span>
+
+                                        {/* Event stat cards */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+                                            {events.map((ev) => {
+                                                const fillPct = ev.capacity > 0 ? Math.min((ev.registrationCount / ev.capacity) * 100, 100) : 0;
+                                                const barColor = ev.registrationCount >= ev.capacity ? "var(--red)" : fillPct >= 90 ? "var(--red)" : fillPct >= 70 ? "#f59e0b" : "#10b981";
+                                                const statusLabel = ev.registrationCount >= ev.capacity ? "FULL" : ev.isActive ? "ACTIVE" : "INACTIVE";
+                                                const statusBg = ev.registrationCount >= ev.capacity ? "rgba(232,52,26,0.10)" : ev.isActive ? "rgba(16,185,129,0.10)" : "rgba(0,0,0,0.06)";
+                                                const statusColor = ev.registrationCount >= ev.capacity ? "var(--red)" : ev.isActive ? "#10b981" : "var(--muted)";
+                                                return (
+                                                    <div key={ev.eventId} style={{ border: "1.5px solid var(--line)", padding: "16px", background: "var(--paper2)" }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                                                            <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", lineHeight: 1.3, flex: 1, paddingRight: "8px" }}>{ev.name}</span>
+                                                            <span style={{ fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "3px 7px", background: statusBg, color: statusColor, border: `1px solid ${statusColor}`, flexShrink: 0 }}>{statusLabel}</span>
+                                                        </div>
+                                                        <p style={{ fontFamily: "var(--bebas)", fontSize: "28px", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "8px", color: barColor }}>
+                                                            {ev.registrationCount} <span style={{ fontSize: "14px", color: "var(--muted)", fontFamily: "var(--bebas)" }}>/ {ev.capacity}</span>
+                                                        </p>
+                                                        <div style={{ height: "6px", background: "var(--line)", position: "relative", overflow: "hidden" }}>
+                                                            <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, background: barColor, transition: "width 1s ease" }} />
+                                                        </div>
+                                                        <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "5px", fontWeight: 700, letterSpacing: "0.08em" }}>{Math.round(fillPct)}% filled</p>
                                                     </div>
-                                                    <div style={{ height: "20px", border: "1.5px solid var(--ink)", background: "var(--paper2)", position: "relative" }}>
-                                                        <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min((ev.registrationCount / ev.capacity) * 100, 100)}%`, background: ev.registrationCount >= ev.capacity ? "#ef4444" : "#10b981", transition: "width 1s ease" }} />
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Enhanced bar chart */}
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
+                                            {events.map((ev) => {
+                                                const fillPct = ev.capacity > 0 ? Math.min((ev.registrationCount / ev.capacity) * 100, 100) : 0;
+                                                const barColor = ev.registrationCount >= ev.capacity ? "var(--red)" : fillPct >= 90 ? "var(--red)" : fillPct >= 70 ? "#f59e0b" : "#10b981";
+                                                return (
+                                                    <div key={ev.eventId}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                                                            <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>{ev.name}</span>
+                                                            <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)" }}>{ev.registrationCount} / {ev.capacity}</span>
+                                                        </div>
+                                                        <div style={{ height: "22px", border: "1.5px solid var(--ink)", background: "var(--paper2)", position: "relative" }}>
+                                                            <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, background: barColor, transition: "width 1s ease" }} />
+                                                            {ev.registrationCount > 0 && (
+                                                                <span style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", left: `${Math.min(fillPct, 85)}%`, marginLeft: "6px", fontSize: "9px", fontWeight: 800, color: fillPct > 20 ? "#fff" : "var(--ink)", letterSpacing: "0.06em", pointerEvents: "none" }}>
+                                                                    {ev.registrationCount}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* No-event count */}
+                                        <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: "var(--paper2)", border: "1.5px dashed var(--line)" }}>
+                                            <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)", flex: 1 }}>No Event Selected</span>
+                                            <span style={{ fontFamily: "var(--bebas)", fontSize: "22px", color: "var(--muted)", letterSpacing: "0.04em" }}>
+                                                {students.filter(s => !s.eventId).length}
+                                            </span>
+                                            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)" }}>students</span>
                                         </div>
                                     </div>
                                 )}
@@ -648,6 +736,63 @@ export default function AdminPage() {
                                         RELOAD DATA
                                     </button>
                                 </header>
+
+                                {/* ── Event-wise count summary ── */}
+                                {events.length > 0 && (
+                                    <div className="admin-card" style={{ padding: "20px 24px" }}>
+                                        <h3 style={{ fontFamily: "var(--bebas)", fontSize: "18px", letterSpacing: "0.06em", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                                            <CalendarDays style={{ width: 18, height: 18, color: "var(--red)" }} /> Event Summary
+                                        </h3>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "24px" }}>
+                                            {events.map((ev) => (
+                                                <div key={ev.eventId} style={{ border: "1.5px solid var(--line)", padding: "12px 16px", background: "var(--paper2)", minWidth: "140px" }}>
+                                                    <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px", lineHeight: 1.3 }}>{ev.name}</p>
+                                                    <p style={{ fontFamily: "var(--bebas)", fontSize: "26px", letterSpacing: "0.02em", lineHeight: 1, color: "var(--ink)" }}>
+                                                        {studentsWithEvents.filter(s => s.eventId === ev.eventId).length}
+                                                    </p>
+                                                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginTop: "2px" }}>registered</p>
+                                                </div>
+                                            ))}
+                                            <div style={{ border: "1.5px dashed var(--line)", padding: "12px 16px", background: "transparent", minWidth: "140px" }}>
+                                                <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px", color: "var(--muted)" }}>No Event</p>
+                                                <p style={{ fontFamily: "var(--bebas)", fontSize: "26px", letterSpacing: "0.02em", lineHeight: 1, color: "var(--muted)" }}>
+                                                    {students.filter(s => !s.eventId).length}
+                                                </p>
+                                                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginTop: "2px" }}>pending</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Export section */}
+                                        <div style={{ borderTop: "1.5px solid var(--line)", paddingTop: "20px" }}>
+                                            <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--muted)", marginBottom: "12px" }}>Export Data</p>
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                                                {/* Export All XLS */}
+                                                <button
+                                                    onClick={handleExportAllXLS}
+                                                    className="btn-primary"
+                                                    style={{ fontSize: "10px", fontWeight: 800, padding: "9px 18px", display: "flex", alignItems: "center", gap: "6px" }}
+                                                >
+                                                    <FileSpreadsheet style={{ width: 13, height: 13 }} /> Export All (XLS, multi-sheet)
+                                                </button>
+
+                                                {/* Per-event CSV buttons */}
+                                                <div style={{ width: "1px", height: "28px", background: "var(--line)", margin: "0 4px" }} />
+                                                {events.map((ev) => (
+                                                    <button
+                                                        key={ev.eventId}
+                                                        onClick={() => handleExportEventCSV(ev.eventId, ev.name)}
+                                                        className="btn-secondary"
+                                                        style={{ fontSize: "9px", fontWeight: 800, padding: "7px 13px", display: "flex", alignItems: "center", gap: "5px", letterSpacing: "0.08em" }}
+                                                    >
+                                                        <Download style={{ width: 11, height: 11 }} />
+                                                        {ev.name.slice(0, 20)}{ev.name.length > 20 ? "…" : ""} CSV
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="admin-card" style={{ padding: "4px" }}>
                                     <StudentTable students={studentsWithEvents} showEventColumn={true} />
                                 </div>
