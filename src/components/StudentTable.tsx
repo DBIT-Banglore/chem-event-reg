@@ -11,6 +11,7 @@ interface Student {
     section: string;
     email?: string;
     eventId?: string | null;
+    eventName?: string | null;
 }
 
 interface StudentTableProps {
@@ -65,22 +66,23 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
     };
 
     const exportCSV = () => {
-        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section", "Event ID"];
+        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Event ID"];
         const rows = students.map((s) => [
-            s.name, s.usn, s.email || "", s.phone, s.branch, s.section, s.eventId || "",
+            s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
+            s.eventName || "", s.eventId || "",
         ]);
 
         const csvContent = [
             headers.join(","),
             ...rows.map((row) =>
-                row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
+                row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
             ),
         ].join("\n");
 
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `idea-lab-data-${new Date().toISOString().split("T")[0]}.csv`;
+        link.download = `registrations-${new Date().toISOString().split("T")[0]}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     };
@@ -95,9 +97,10 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                 Phone: s.phone,
                 Branch: s.branch,
                 Section: s.section,
+                "Event Name": s.eventName || "",
                 "Event ID": s.eventId || "",
             }));
-            exportSingleSheet(rows, `idea-lab-data-${new Date().toISOString().split("T")[0]}.xlsx`, "Students");
+            exportSingleSheet(rows, `registrations-${new Date().toISOString().split("T")[0]}.xlsx`, "Registrations");
         } catch {
             exportCSV();
         }
@@ -138,7 +141,7 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                             <th style={thStyle} className="admin-hide-mobile">Branch</th>
                             <th style={thStyle} className="admin-hide-mobile">Section</th>
                             {showEventColumn && (
-                                <th style={thStyle} className="admin-hide-tablet">Event ID</th>
+                                <th style={thStyle} className="admin-hide-tablet">Event</th>
                             )}
                         </tr>
                     </thead>
@@ -157,8 +160,10 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                                 <td style={{ ...tdStyle, color: "var(--muted)" }} className="admin-hide-mobile">{student.branch}</td>
                                 <td style={{ ...tdStyle, color: "var(--muted)" }} className="admin-hide-mobile">{student.section}</td>
                                 {showEventColumn && (
-                                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: "12px" }} className="admin-hide-tablet">
-                                        {student.eventId ? (
+                                    <td style={{ ...tdStyle, fontSize: "12px" }} className="admin-hide-tablet">
+                                        {student.eventName ? (
+                                            <span className="badge badge-success">{student.eventName}</span>
+                                        ) : student.eventId ? (
                                             <span className="badge badge-success">{student.eventId}</span>
                                         ) : (
                                             <span style={{ color: "var(--muted)" }}>—</span>

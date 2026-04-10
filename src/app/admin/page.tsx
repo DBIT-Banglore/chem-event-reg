@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { db, auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
@@ -332,6 +332,15 @@ export default function AdminPage() {
         "AI&DS": "#10b981", ISE: "#ef4444", ECE: "#8b5cf6", EEE: "#ec4899",
     };
 
+    // Enrich students with event names for display and export
+    const studentsWithEvents = useMemo(() => {
+        const eventMap = new Map(events.map(e => [e.eventId, e.name]));
+        return students.map(s => ({
+            ...s,
+            eventName: s.eventId ? (eventMap.get(s.eventId) ?? null) : null,
+        }));
+    }, [students, events]);
+
     // ─── Loading ───
     if (authLoading) {
         return (
@@ -640,7 +649,7 @@ export default function AdminPage() {
                                     </button>
                                 </header>
                                 <div className="admin-card" style={{ padding: "4px" }}>
-                                    <StudentTable students={students} showEventColumn={true} />
+                                    <StudentTable students={studentsWithEvents} showEventColumn={true} />
                                 </div>
                             </>
                         )}
