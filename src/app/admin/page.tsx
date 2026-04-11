@@ -173,17 +173,25 @@ export default function AdminPage() {
     };
 
     const handleResetDatabase = async () => {
-        if (!user || !user.email) return;
+        console.log("[reset] clicked, user=", user?.email, "phrase=", JSON.stringify(resetPhrase));
+        if (!user || !user.email) {
+            console.log("[reset] BLOCKED: no user");
+            setResetError("Not logged in. Please refresh and try again.");
+            return;
+        }
         if (resetPhrase.trim() !== "RESET DATABASE") {
+            console.log("[reset] BLOCKED: phrase mismatch:", JSON.stringify(resetPhrase.trim()));
             setResetError("Please type 'RESET DATABASE' exactly.");
             return;
         }
 
         setResetLoading(true);
         setResetError("");
+        console.log("[reset] fetching token…");
 
         try {
             const idToken = await user.getIdToken(true);
+            console.log("[reset] got token, calling API…");
 
             const res = await fetch("/api/admin/reset-database", {
                 method: "POST",
@@ -191,6 +199,7 @@ export default function AdminPage() {
                 body: JSON.stringify({ idToken, clearCSV, clearOtpCodes, clearEvents }),
             });
             const data = await res.json();
+            console.log("[reset] API response:", res.status, data);
 
             if (!res.ok) {
                 throw new Error(data.error || "Failed to reset database.");
@@ -205,6 +214,7 @@ export default function AdminPage() {
             await Promise.all([fetchStudents(), fetchEvents()]);
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : "Failed to reset database.";
+            console.error("[reset] error:", error);
             setResetError(msg);
         } finally {
             setResetLoading(false);
