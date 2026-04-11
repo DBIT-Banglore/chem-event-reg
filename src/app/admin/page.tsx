@@ -173,25 +173,22 @@ export default function AdminPage() {
     };
 
     const handleResetDatabase = async () => {
-        console.log("[reset] clicked, user=", user?.email, "phrase=", JSON.stringify(resetPhrase));
-        if (!user || !user.email) {
-            console.log("[reset] BLOCKED: no user");
+        const currentUser = auth.currentUser;
+        console.log("[reset] clicked, user=", currentUser?.email, "phrase=", JSON.stringify(resetPhrase));
+        if (!currentUser || !currentUser.email) {
             setResetError("Not logged in. Please refresh and try again.");
             return;
         }
         if (resetPhrase.trim() !== "RESET DATABASE") {
-            console.log("[reset] BLOCKED: phrase mismatch:", JSON.stringify(resetPhrase.trim()));
             setResetError("Please type 'RESET DATABASE' exactly.");
             return;
         }
 
         setResetLoading(true);
         setResetError("");
-        console.log("[reset] fetching token…");
 
         try {
-            const idToken = await user.getIdToken(true);
-            console.log("[reset] got token, calling API…");
+            const idToken = await currentUser.getIdToken(true);
 
             const res = await fetch("/api/admin/reset-database", {
                 method: "POST",
@@ -199,11 +196,8 @@ export default function AdminPage() {
                 body: JSON.stringify({ idToken, clearCSV, clearOtpCodes, clearEvents }),
             });
             const data = await res.json();
-            console.log("[reset] API response:", res.status, data);
 
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to reset database.");
-            }
+            if (!res.ok) throw new Error(data.error || "Failed to reset database.");
 
             setShowResetModal(false);
             setResetPhrase("");
