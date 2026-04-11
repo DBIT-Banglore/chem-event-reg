@@ -173,12 +173,6 @@ export default function AdminPage() {
     };
 
     const handleResetDatabase = async () => {
-        const currentUser = auth.currentUser;
-        console.log("[reset] clicked, user=", currentUser?.email, "phrase=", JSON.stringify(resetPhrase));
-        if (!currentUser || !currentUser.email) {
-            setResetError("Not logged in. Please refresh and try again.");
-            return;
-        }
         if (resetPhrase.trim() !== "RESET DATABASE") {
             setResetError("Please type 'RESET DATABASE' exactly.");
             return;
@@ -188,7 +182,11 @@ export default function AdminPage() {
         setResetError("");
 
         try {
-            const idToken = await currentUser.getIdToken(true);
+            // Try React state first, fall back to auth.currentUser
+            const activeUser = user ?? auth.currentUser;
+            if (!activeUser) throw new Error("Session expired. Please log out and log back in.");
+
+            const idToken = await activeUser.getIdToken(true);
 
             const res = await fetch("/api/admin/reset-database", {
                 method: "POST",
@@ -208,7 +206,6 @@ export default function AdminPage() {
             await Promise.all([fetchStudents(), fetchEvents()]);
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : "Failed to reset database.";
-            console.error("[reset] error:", error);
             setResetError(msg);
         } finally {
             setResetLoading(false);
