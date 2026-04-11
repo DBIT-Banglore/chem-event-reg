@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { db, auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import StudentTable from "@/components/StudentTable";
 import CSVUploader from "@/components/CSVUploader";
 import CSVStudentTable, { CSVStudent } from "@/components/CSVStudentTable";
-import { LayoutDashboard, Users, Settings, LogOut, Lightbulb, AlertTriangle, ShieldAlert, Eraser, Database, Download, FileSpreadsheet, CalendarDays, Plus } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, Lightbulb, AlertTriangle, AlertCircle, ShieldAlert, Eraser, Database, Download, FileSpreadsheet, CalendarDays, Plus } from "lucide-react";
 
 interface Student {
     name: string;
@@ -35,7 +35,6 @@ export default function AdminPage() {
 
     // Reset Database States
     const [showResetModal, setShowResetModal] = useState(false);
-    const [resetPassword, setResetPassword] = useState("");
     const [resetPhrase, setResetPhrase] = useState("");
     const [resetLoading, setResetLoading] = useState(false);
     const [resetError, setResetError] = useState("");
@@ -173,8 +172,7 @@ export default function AdminPage() {
         setStudents([]);
     };
 
-    const handleResetDatabase = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleResetDatabase = async () => {
         if (!user || !user.email) return;
         if (resetPhrase.trim() !== "RESET DATABASE") {
             setResetError("Please type 'RESET DATABASE' exactly.");
@@ -185,14 +183,8 @@ export default function AdminPage() {
         setResetError("");
 
         try {
-            // Re-authenticate to confirm identity
-            const credential = EmailAuthProvider.credential(user.email, resetPassword);
-            await reauthenticateWithCredential(user, credential);
-
-            // Get a fresh ID token for the server
             const idToken = await user.getIdToken(true);
 
-            // Call server-side reset API (uses admin SDK, bypasses Firestore rules)
             const res = await fetch("/api/admin/reset-database", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -204,13 +196,12 @@ export default function AdminPage() {
                 throw new Error(data.error || "Failed to reset database.");
             }
 
-            alert(data.message || "Database has been successfully reset.");
             setShowResetModal(false);
-            setResetPassword("");
             setResetPhrase("");
             setClearOtpCodes(true);
             setClearCSV(false);
             setClearEvents(false);
+            alert(data.message || "Database has been successfully reset.");
             await Promise.all([fetchStudents(), fetchEvents()]);
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : "Failed to reset database.";
@@ -1015,7 +1006,7 @@ export default function AdminPage() {
                             </p>
                         </div>
 
-                        <form onSubmit={handleResetDatabase} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                             {/* Cleanup options */}
                             <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px 16px", background: "rgba(232, 52, 26, 0.04)", border: "1.5px solid var(--line)" }}>
                                 <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)", marginBottom: "4px" }}>
@@ -1051,39 +1042,45 @@ export default function AdminPage() {
                             </div>
 
                             <div>
-                                <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>Admin Password</label>
-                                <input type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="REQUIRED" className="input-field" required />
-                            </div>
-                            <div>
                                 <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>
-                                    Type <span style={{ color: "var(--red)", fontStyle: "italic" }}>RESET DATABASE</span>
+                                    Type <span style={{ color: "var(--red)", fontStyle: "italic" }}>RESET DATABASE</span> to confirm
                                 </label>
-                                <input type="text" value={resetPhrase} onChange={(e) => setResetPhrase(e.target.value.toUpperCase())} placeholder="RESET DATABASE" className="input-field" style={{ textTransform: "uppercase" }} required />
+                                <input
+                                    type="text"
+                                    value={resetPhrase}
+                                    onChange={(e) => setResetPhrase(e.target.value.toUpperCase())}
+                                    placeholder="RESET DATABASE"
+                                    className="input-field"
+                                    style={{ textTransform: "uppercase" }}
+                                    autoComplete="off"
+                                />
                             </div>
 
                             {resetError && (
-                                <div style={{ padding: "12px 14px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--red)", color: "#fff", border: "1px solid var(--ink)" }}>
-                                    {resetError}
+                                <div style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 700, background: "rgba(232,52,26,0.10)", color: "var(--red)", border: "1.5px solid var(--red)", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} /> {resetError}
                                 </div>
                             )}
 
                             <div style={{ display: "flex", gap: "12px" }}>
                                 <button
                                     type="button"
-                                    onClick={() => { setShowResetModal(false); setResetError(""); setResetPassword(""); setResetPhrase(""); }}
+                                    onClick={() => { setShowResetModal(false); setResetError(""); setResetPhrase(""); }}
                                     className="btn-secondary"
                                     style={{ flex: 1, padding: "14px" }}
+                                    disabled={resetLoading}
                                 >
                                     ABORT
                                 </button>
                                 <button
-                                    type="submit"
-                                    disabled={resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword}
+                                    type="button"
+                                    onClick={handleResetDatabase}
+                                    disabled={resetLoading || resetPhrase.trim() !== "RESET DATABASE"}
                                     className="btn-danger"
                                     style={{
                                         flex: 1, padding: "14px",
-                                        opacity: resetLoading ? 1 : (resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? 0.35 : 1,
-                                        cursor: resetLoading ? "default" : (resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? "not-allowed" : "pointer",
+                                        opacity: resetLoading ? 1 : resetPhrase.trim() !== "RESET DATABASE" ? 0.35 : 1,
+                                        cursor: resetLoading ? "default" : resetPhrase.trim() !== "RESET DATABASE" ? "not-allowed" : "pointer",
                                         display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
                                         pointerEvents: resetLoading ? "none" : undefined,
                                     }}
@@ -1102,7 +1099,7 @@ export default function AdminPage() {
                                     )}
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             )}
