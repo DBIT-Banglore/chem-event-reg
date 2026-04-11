@@ -21,6 +21,21 @@ export async function POST(req: NextRequest) {
 
     const db = getAdminFirestore();
 
+    // Block if student already paid for a different event
+    const regDoc = await db.collection("registrations").doc(usn).get();
+    if (regDoc.exists) {
+      const reg = regDoc.data()!;
+      if (reg.paymentStatus === "paid" && reg.eventId && reg.eventId !== eventId) {
+        return NextResponse.json({
+          error: "You have already paid for an event. Contact admin to change your event.",
+        }, { status: 403 });
+      }
+      // Already on this event and paid — nothing to do
+      if (reg.paymentStatus === "paid" && reg.eventId === eventId) {
+        return NextResponse.json({ free: true, eventId, eventName: eventId, alreadyPaid: true });
+      }
+    }
+
     // Get event details
     const eventDoc = await db.collection("events").doc(eventId).get();
     if (!eventDoc.exists) return NextResponse.json({ error: "Event not found" }, { status: 404 });

@@ -14,6 +14,7 @@ export async function GET() {
           description: data.description,
           capacity: data.capacity,
           dateTime: data.dateTime,
+          price: data.price ?? 0,
           registrationCount: data.registrationCount || 0,
           isActive: data.isActive,
         };

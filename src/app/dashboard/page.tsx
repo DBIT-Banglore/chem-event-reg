@@ -25,6 +25,7 @@ function DashboardContent({ session }: { session: SessionData }) {
   const router = useRouter();
   const [registrationOpen, setRegistrationOpen] = useState<boolean>(true);
   const [currentEvent, setCurrentEvent] = useState<ProgrammeEvent | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [events, setEvents] = useState<ProgrammeEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEventPicker, setShowEventPicker] = useState(false);
@@ -42,6 +43,7 @@ function DashboardContent({ session }: { session: SessionData }) {
 
       const regDoc = await getDoc(doc(db, "registrations", session.usn));
       const eventId = regDoc.exists() ? (regDoc.data()?.eventId || null) : null;
+      setPaymentStatus(regDoc.exists() ? (regDoc.data()?.paymentStatus || null) : null);
 
       if (eventId) {
         const eventDoc = await getDoc(doc(db, "events", eventId));
@@ -264,13 +266,19 @@ function DashboardContent({ session }: { session: SessionData }) {
             </div>
 
             {registrationOpen && (
-              <button
-                onClick={async () => { setShowEventPicker(!showEventPicker); if (!showEventPicker) await fetchEvents(); }}
-                className="btn-secondary"
-                style={{ fontSize: "11px", padding: "10px 20px", display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <ChevronRight style={{ width: 14, height: 14 }} /> Change Event
-              </button>
+              paymentStatus === "paid" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 14px", background: "rgba(16,185,129,0.08)", border: "1.5px solid #10b981", fontSize: "11px", fontWeight: 700, color: "#10b981" }}>
+                  <CheckCircle2 style={{ width: 14, height: 14, flexShrink: 0 }} /> PAID &amp; LOCKED — Contact admin to change
+                </div>
+              ) : (
+                <button
+                  onClick={async () => { setShowEventPicker(!showEventPicker); if (!showEventPicker) await fetchEvents(); }}
+                  className="btn-secondary"
+                  style={{ fontSize: "11px", padding: "10px 20px", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <ChevronRight style={{ width: 14, height: 14 }} /> Change Event
+                </button>
+              )
             )}
           </div>
         ) : (
