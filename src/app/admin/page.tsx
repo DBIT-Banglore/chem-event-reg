@@ -7,7 +7,7 @@ import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import StudentTable from "@/components/StudentTable";
 import CSVUploader from "@/components/CSVUploader";
 import CSVStudentTable, { CSVStudent } from "@/components/CSVStudentTable";
-import { LayoutDashboard, Users, Settings, LogOut, Lightbulb, AlertTriangle, AlertCircle, ShieldAlert, Eraser, Database, Download, FileSpreadsheet, CalendarDays, Plus } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, Lightbulb, AlertTriangle, AlertCircle, ShieldAlert, Eraser, Database, Download, FileSpreadsheet, CalendarDays, Plus, Clock, IndianRupee, CheckCircle2 } from "lucide-react";
 
 interface Student {
     name: string;
@@ -841,7 +841,7 @@ export default function AdminPage() {
                                                         <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "13px", color: "var(--muted)", fontWeight: 600 }}>₹</span>
                                                         <input type="number" value={eventForm.price} onChange={e => setEventForm(f => ({...f, price: e.target.value}))} className="input-field" min={0} placeholder="0" style={{ paddingLeft: "28px" }} />
                                                     </div>
-                                                    {Number(eventForm.price) === 0 && <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 700, marginTop: "4px", display: "inline-block" }}>✓ FREE event</span>}
+                                                    {Number(eventForm.price) === 0 && <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 700, marginTop: "4px", display: "inline-flex", alignItems: "center", gap: "4px" }}><CheckCircle2 style={{ width: 11, height: 11 }} /> FREE event</span>}
                                                 </div>
                                                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                                     <input type="checkbox" id="isActive" checked={eventForm.isActive} onChange={e => setEventForm(f => ({...f, isActive: e.target.checked}))} style={{ width: 16, height: 16, cursor: "pointer" }} />
@@ -901,10 +901,11 @@ export default function AdminPage() {
                                                     <div style={{ padding: "16px 20px" }}>
                                                         {ev.description && <p style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "12px", lineHeight: 1.6 }}>{ev.description}</p>}
                                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "14px" }}>
-                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>📅 {new Date(ev.dateTime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: isFull ? "#ef4444" : "var(--muted)" }}>👥 {ev.registrationCount} / {ev.capacity}</span>
-                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
-                                                                {(ev.price ?? 0) === 0 ? "🆓 Free" : `💰 ₹${ev.price}`}
+                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}><Clock style={{ width: 12, height: 12 }} /> {new Date(ev.dateTime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: isFull ? "#ef4444" : "var(--muted)", display: "inline-flex", alignItems: "center", gap: "4px" }}><Users style={{ width: 12, height: 12 }} /> {ev.registrationCount} / {ev.capacity}</span>
+                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                                                <IndianRupee style={{ width: 12, height: 12 }} />
+                                                                {(ev.price ?? 0) === 0 ? "Free" : ev.price}
                                                             </span>
                                                         </div>
                                                         <div style={{ height: "6px", background: "var(--line)", marginBottom: "16px" }}>

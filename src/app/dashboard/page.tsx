@@ -7,7 +7,7 @@ import { getSession, clearSession, initializeAuth } from "@/lib/session";
 import { SessionData, ProgrammeEvent } from "@/lib/types";
 import Navbar from "@/components/Navbar";
 import SessionGuard from "@/components/SessionGuard";
-import { CalendarDays, Users, CheckCircle2, ChevronRight, LogOut, AlertCircle, Tag, Clock } from "lucide-react";
+import { CalendarDays, Users, CheckCircle2, ChevronRight, LogOut, AlertCircle, Tag, Clock, IndianRupee } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function formatDateTime(iso: string) {
@@ -347,12 +347,12 @@ function DashboardContent({ session }: { session: SessionData }) {
                         </div>
                         {ev.description && <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6, marginBottom: "8px" }}>{ev.description}</p>}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>📅 {formatDateTime(ev.dateTime)}</span>
-                          <span style={{ fontSize: "11px", color: isFull ? "var(--red)" : "var(--muted)", fontWeight: 600 }}>
-                            👥 {ev.registrationCount}/{ev.capacity} {isFull ? "(Full)" : "spots"}
+                          <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}><Clock style={{ width: 12, height: 12 }} /> {formatDateTime(ev.dateTime)}</span>
+                          <span style={{ fontSize: "11px", color: isFull ? "var(--red)" : "var(--muted)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <Users style={{ width: 12, height: 12 }} /> {ev.registrationCount}/{ev.capacity} {isFull ? "(Full)" : "spots"}
                           </span>
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
-                            {(ev.price ?? 0) === 0 ? "🆓 Free" : `💰 ₹${ev.price}`}
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <IndianRupee style={{ width: 12, height: 12 }} />{(ev.price ?? 0) === 0 ? "Free" : ev.price}
                           </span>
                         </div>
                       </div>
