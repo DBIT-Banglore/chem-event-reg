@@ -176,7 +176,7 @@ export default function AdminPage() {
     const handleResetDatabase = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !user.email) return;
-        if (resetPhrase !== "RESET DATABASE") {
+        if (resetPhrase.trim() !== "RESET DATABASE") {
             setResetError("Please type 'RESET DATABASE' exactly.");
             return;
         }
@@ -1079,15 +1079,17 @@ export default function AdminPage() {
                                 <button
                                     type="submit"
                                     disabled={resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword}
+                                    className="btn-danger"
                                     style={{
-                                        flex: 1, padding: "14px", background: "var(--red)", color: "#fff",
-                                        fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em",
-                                        fontSize: "11px", border: "1px solid var(--ink)", cursor: "pointer",
-                                        opacity: (resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? 0.3 : 1,
-                                        transition: "all 0.15s", fontFamily: "var(--body)",
+                                        flex: 1, padding: "14px",
+                                        opacity: (resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? 0.35 : 1,
+                                        cursor: (resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? "not-allowed" : "pointer",
+                                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
                                     }}
                                 >
-                                    {resetLoading ? <div className="spinner" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> : "ERASE DATA"}
+                                    {resetLoading
+                                        ? <><div className="spinner" style={{ width: 14, height: 14, borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> Resetting…</>
+                                        : <><Eraser style={{ width: 14, height: 14 }} /> ERASE DATA</>}
                                 </button>
                             </div>
                         </form>
