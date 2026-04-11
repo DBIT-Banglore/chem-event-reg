@@ -88,15 +88,21 @@ function DashboardContent({ session }: { session: SessionData }) {
 
   const loadRazorpayScript = (): Promise<void> =>
     new Promise((resolve, reject) => {
+      // Script loaded via layout.tsx — wait up to 5s for it to be ready
       if (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).Razorpay) {
         resolve();
         return;
       }
-      const s = document.createElement("script");
-      s.src = "https://checkout.razorpay.com/v1/checkout.js";
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("Failed to load payment gateway"));
-      document.body.appendChild(s);
+      let tries = 0;
+      const check = setInterval(() => {
+        if ((window as unknown as Record<string, unknown>).Razorpay) {
+          clearInterval(check);
+          resolve();
+        } else if (++tries > 50) {
+          clearInterval(check);
+          reject(new Error("Payment gateway unavailable. Check your internet connection."));
+        }
+      }, 100);
     });
 
   const handleSelectEvent = async (eventId: string) => {

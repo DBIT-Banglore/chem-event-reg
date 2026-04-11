@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Idea Lab — Don Bosco Institute of Technology, Kumbalagodu, Bangalore",
-  description: "Register. Pair Up. Innovate Together. Join 825+ first-year students in cross-branch teams of 6.",
+  title: "Chem Event Reg — DBIT Bangalore",
+  description: "Register for Chemistry department events at Don Bosco Institute of Technology, Bangalore.",
 };
 
 export default function RootLayout({
@@ -24,6 +25,10 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>{children}</AuthProvider>
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

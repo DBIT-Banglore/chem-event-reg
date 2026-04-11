@@ -808,14 +808,18 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
                   return;
                 }
 
-                // Paid event — load Razorpay and open checkout
+                // Paid event — wait for Razorpay (loaded via layout Script tag)
                 await new Promise<void>((resolveScript, rejectScript) => {
                   if ((window as unknown as Record<string, unknown>).Razorpay) { resolveScript(); return; }
-                  const s = document.createElement("script");
-                  s.src = "https://checkout.razorpay.com/v1/checkout.js";
-                  s.onload = () => resolveScript();
-                  s.onerror = () => rejectScript(new Error("Failed to load payment gateway"));
-                  document.body.appendChild(s);
+                  let tries = 0;
+                  const check = setInterval(() => {
+                    if ((window as unknown as Record<string, unknown>).Razorpay) {
+                      clearInterval(check); resolveScript();
+                    } else if (++tries > 50) {
+                      clearInterval(check);
+                      rejectScript(new Error("Payment gateway unavailable. Check your internet connection."));
+                    }
+                  }, 100);
                 });
 
                 await new Promise<void>((resolve, reject) => {
