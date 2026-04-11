@@ -34,13 +34,10 @@ export async function POST(req: NextRequest) {
     let decoded;
     try {
       decoded = await adminAuth.verifyIdToken(idToken);
+      if (!decoded.uid) throw new Error("No UID in token");
     } catch (err) {
       console.error("ID token verification failed:", err);
       return NextResponse.json({ error: "Token verification failed. Try logging out and back in." }, { status: 401 });
-    }
-
-    if (!decoded.email) {
-      return NextResponse.json({ error: "Invalid token: no email claim" }, { status: 401 });
     }
 
     let adminDb;
