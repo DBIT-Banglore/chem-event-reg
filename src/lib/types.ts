@@ -21,6 +21,7 @@ export interface ProgrammeEvent {
   description: string;
   capacity: number;
   dateTime: string; // ISO string
+  price: number;    // Entry fee in INR; 0 = free
   registrationCount: number;
   isActive: boolean;
   createdAt: Date | null;
@@ -36,6 +37,8 @@ export interface Registration {
   branch: string;
   section: string;
   eventId: string | null;
+  paymentId: string | null;   // Razorpay payment ID after successful payment
+  paymentStatus: "free" | "paid" | "pending" | null;
   registeredAt: Date | null;
 }
 

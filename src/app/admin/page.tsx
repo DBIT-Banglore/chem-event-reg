@@ -52,11 +52,11 @@ export default function AdminPage() {
     const [csvStudentCount, setCsvStudentCount] = useState(0);
 
     // Event state
-    const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; registrationCount: number; isActive: boolean}>>([]);
+    const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number; isActive: boolean}>>([]);
     const [eventsLoading, setEventsLoading] = useState(false);
     const [showEventForm, setShowEventForm] = useState(false);
     const [editingEvent, setEditingEvent] = useState<string | null>(null);
-    const [eventForm, setEventForm] = useState({ name: "", description: "", capacity: "", dateTime: "", isActive: true });
+    const [eventForm, setEventForm] = useState({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true });
     const [eventFormError, setEventFormError] = useState("");
     const [eventFormLoading, setEventFormLoading] = useState(false);
 
@@ -255,6 +255,7 @@ export default function AdminPage() {
                 description: eventForm.description,
                 capacity: Number(eventForm.capacity),
                 dateTime: eventForm.dateTime,
+                price: Number(eventForm.price) || 0,
                 isActive: eventForm.isActive,
             };
 
@@ -277,7 +278,7 @@ export default function AdminPage() {
             if (!res.ok) throw new Error(data.error || "Failed to save event");
             setShowEventForm(false);
             setEditingEvent(null);
-            setEventForm({ name: "", description: "", capacity: "", dateTime: "", isActive: true });
+            setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true });
             await fetchEvents();
         } catch (err) {
             setEventFormError(err instanceof Error ? err.message : "Failed to save event");
@@ -808,7 +809,7 @@ export default function AdminPage() {
                                         <p className="admin-section-sub">{events.length} Event{events.length !== 1 ? "s" : ""} · {events.filter(e => e.isActive).length} Active</p>
                                     </div>
                                     <button
-                                        onClick={() => { setShowEventForm(true); setEditingEvent(null); setEventForm({ name: "", description: "", capacity: "", dateTime: "", isActive: true }); setEventFormError(""); }}
+                                        onClick={() => { setShowEventForm(true); setEditingEvent(null); setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true }); setEventFormError(""); }}
                                         className="btn-primary"
                                         style={{ fontSize: "10px", fontWeight: 800, padding: "10px 20px", display: "flex", alignItems: "center", gap: "6px" }}
                                     >
@@ -841,6 +842,14 @@ export default function AdminPage() {
                                                         <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>Date & Time *</label>
                                                         <input type="datetime-local" value={eventForm.dateTime} onChange={e => setEventForm(f => ({...f, dateTime: e.target.value}))} className="input-field" required />
                                                     </div>
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>Entry Fee (₹) <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— 0 for free</span></label>
+                                                    <div style={{ position: "relative" }}>
+                                                        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "13px", color: "var(--muted)", fontWeight: 600 }}>₹</span>
+                                                        <input type="number" value={eventForm.price} onChange={e => setEventForm(f => ({...f, price: e.target.value}))} className="input-field" min={0} placeholder="0" style={{ paddingLeft: "28px" }} />
+                                                    </div>
+                                                    {Number(eventForm.price) === 0 && <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 700, marginTop: "4px", display: "inline-block" }}>✓ FREE event</span>}
                                                 </div>
                                                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                                     <input type="checkbox" id="isActive" checked={eventForm.isActive} onChange={e => setEventForm(f => ({...f, isActive: e.target.checked}))} style={{ width: 16, height: 16, cursor: "pointer" }} />
@@ -902,13 +911,16 @@ export default function AdminPage() {
                                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "14px" }}>
                                                             <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>📅 {new Date(ev.dateTime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                                                             <span style={{ fontSize: "12px", fontWeight: 700, color: isFull ? "#ef4444" : "var(--muted)" }}>👥 {ev.registrationCount} / {ev.capacity}</span>
+                                                            <span style={{ fontSize: "12px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
+                                                                {(ev.price ?? 0) === 0 ? "🆓 Free" : `💰 ₹${ev.price}`}
+                                                            </span>
                                                         </div>
                                                         <div style={{ height: "6px", background: "var(--line)", marginBottom: "16px" }}>
                                                             <div style={{ height: "100%", width: `${fillPct}%`, background: isFull ? "#ef4444" : "#10b981", transition: "width 0.5s ease" }} />
                                                         </div>
                                                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                                                             <button
-                                                                onClick={() => { setEditingEvent(ev.eventId); setEventForm({ name: ev.name, description: ev.description, capacity: String(ev.capacity), dateTime: ev.dateTime, isActive: ev.isActive }); setShowEventForm(true); setEventFormError(""); }}
+                                                                onClick={() => { setEditingEvent(ev.eventId); setEventForm({ name: ev.name, description: ev.description, capacity: String(ev.capacity), dateTime: ev.dateTime, price: String(ev.price ?? 0), isActive: ev.isActive }); setShowEventForm(true); setEventFormError(""); }}
                                                                 className="btn-secondary"
                                                                 style={{ fontSize: "10px", padding: "7px 14px" }}
                                                             >

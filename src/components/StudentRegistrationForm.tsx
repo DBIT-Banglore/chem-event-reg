@@ -43,7 +43,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
   const [csvNotFound, setCsvNotFound] = useState(false);
 
   // Event selection state
-  const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; registrationCount: number}>>([]);
+  const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number}>>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [eventSubmitting, setEventSubmitting] = useState(false);
@@ -753,6 +753,9 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
                         <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--ink)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
                           {ev.name}
                           {isFull && <span style={{ fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "var(--muted)", color: "#fff" }}>Full</span>}
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb", marginLeft: "auto" }}>
+                            {(ev.price ?? 0) === 0 ? "Free" : `₹${ev.price}`}
+                          </span>
                         </div>
                         {ev.description && <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.5, marginBottom: "4px" }}>{ev.description}</p>}
                         <p style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
@@ -781,18 +784,77 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
               setEventSubmitting(true);
               setEventError("");
               try {
-                const res = await fetch("/api/registration/select-event", {
+                // Ask server for order info (or free confirmation)
+                const orderRes = await fetch("/api/payment/create-order", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ eventId: selectedEventId }),
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Failed to select event");
-                const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
-                localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
-                window.location.href = redirectTo || "/dashboard";
+                const orderData = await orderRes.json();
+                if (!orderRes.ok) throw new Error(orderData.error || "Failed to initiate");
+
+                if (orderData.free) {
+                  // Free — confirm directly
+                  const res = await fetch("/api/registration/select-event", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ eventId: selectedEventId }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "Failed to select event");
+                  const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
+                  localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
+                  window.location.href = redirectTo || "/dashboard";
+                  return;
+                }
+
+                // Paid event — load Razorpay and open checkout
+                await new Promise<void>((resolveScript, rejectScript) => {
+                  if ((window as unknown as Record<string, unknown>).Razorpay) { resolveScript(); return; }
+                  const s = document.createElement("script");
+                  s.src = "https://checkout.razorpay.com/v1/checkout.js";
+                  s.onload = () => resolveScript();
+                  s.onerror = () => rejectScript(new Error("Failed to load payment gateway"));
+                  document.body.appendChild(s);
+                });
+
+                await new Promise<void>((resolve, reject) => {
+                  const options = {
+                    key: orderData.keyId,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    name: "DBIT Chemistry Dept",
+                    description: `Registration: ${orderData.eventName}`,
+                    order_id: orderData.orderId,
+                    handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+                      try {
+                        const verifyRes = await fetch("/api/payment/verify", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            eventId: selectedEventId,
+                          }),
+                        });
+                        const verifyData = await verifyRes.json();
+                        if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
+                        const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
+                        localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
+                        resolve();
+                        window.location.href = redirectTo || "/dashboard";
+                      } catch (err) { reject(err); }
+                    },
+                    theme: { color: "#E8341A" },
+                    modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
+                  };
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  new (window as any).Razorpay(options).open();
+                });
               } catch (err) {
-                setEventError(err instanceof Error ? err.message : "Failed to select event.");
+                const msg = err instanceof Error ? err.message : "Failed";
+                if (msg !== "Payment cancelled") setEventError(msg);
                 setEventSubmitting(false);
               }
             }}
@@ -800,7 +862,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
             style={{ padding: "16px" }}
           >
             {eventSubmitting ? (
-              <><div className="spinner" /> Confirming...</>
+              <><div className="spinner" /> Processing...</>
             ) : (
               <><CalendarDays style={{ width: 20, height: 20 }} /> Confirm & Go to Dashboard</>
             )}

@@ -17,7 +17,7 @@ export async function GET() {
 // POST — create event
 export async function POST(req: NextRequest) {
   try {
-    const { idToken, name, description, capacity, dateTime, isActive } = await req.json();
+    const { idToken, name, description, capacity, dateTime, isActive, price } = await req.json();
     if (!idToken) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     await getAdminAuth().verifyIdToken(idToken);
 
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || "",
       capacity: Number(capacity),
       dateTime,
+      price: Number(price) || 0,
       registrationCount: 0,
       isActive: isActive ?? true,
       createdAt: FieldValue.serverTimestamp(),
@@ -54,13 +55,14 @@ export async function PUT(req: NextRequest) {
     if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 });
 
     const db = getAdminFirestore();
-    const allowed = ["name", "description", "capacity", "dateTime", "isActive"];
+    const allowed = ["name", "description", "capacity", "dateTime", "isActive", "price"];
     const safeUpdates: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
     for (const key of allowed) {
       if (key in updates) safeUpdates[key] = updates[key];
     }
     if (safeUpdates.name) safeUpdates.name = (safeUpdates.name as string).trim();
     if (safeUpdates.capacity) safeUpdates.capacity = Number(safeUpdates.capacity);
+    if ("price" in safeUpdates) safeUpdates.price = Number(safeUpdates.price) || 0;
 
     await db.collection("events").doc(eventId).update(safeUpdates);
     return NextResponse.json({ success: true });

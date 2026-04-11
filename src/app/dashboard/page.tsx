@@ -53,6 +53,7 @@ function DashboardContent({ session }: { session: SessionData }) {
             description: d.description,
             capacity: d.capacity,
             dateTime: d.dateTime,
+            price: d.price ?? 0,
             registrationCount: d.registrationCount || 0,
             isActive: d.isActive,
             createdAt: d.createdAt?.toDate() || null,
@@ -83,29 +84,99 @@ function DashboardContent({ session }: { session: SessionData }) {
     initializeAuth().then(() => fetchData());
   }, [fetchData]);
 
+  const loadRazorpayScript = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      if (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).Razorpay) {
+        resolve();
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load payment gateway"));
+      document.body.appendChild(s);
+    });
+
   const handleSelectEvent = async (eventId: string) => {
     setSelecting(true);
     setSelectError("");
     setSelectSuccess("");
     try {
-      const res = await fetch("/api/registration/select-event", {
+      // Ask server for order info (or free confirmation)
+      const orderRes = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to select event");
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderData.error || "Failed to initiate");
 
-      const existing = getSession();
-      if (existing) {
-        localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId }));
+      if (orderData.free) {
+        // Free event — confirm slot directly
+        const res = await fetch("/api/registration/select-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to select event");
+
+        const existing = getSession();
+        if (existing) localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId }));
+        setSelectSuccess("Event selected successfully!");
+        setShowEventPicker(false);
+        await fetchData();
+        return;
       }
 
-      setSelectSuccess("Event selected successfully!");
-      setShowEventPicker(false);
-      await fetchData();
+      // Paid event — open Razorpay checkout
+      await loadRazorpayScript();
+      await new Promise<void>((resolve, reject) => {
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: "DBIT Chemistry Dept",
+          description: `Registration: ${orderData.eventName}`,
+          order_id: orderData.orderId,
+          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  eventId,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
+
+              const existing = getSession();
+              if (existing) localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId }));
+              setSelectSuccess("Payment successful! Event confirmed.");
+              setShowEventPicker(false);
+              await fetchData();
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          },
+          prefill: { name: session.name || "", email: session.email || "" },
+          theme: { color: "#E8341A" },
+          modal: {
+            ondismiss: () => reject(new Error("Payment cancelled")),
+          },
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      });
     } catch (err) {
-      setSelectError(err instanceof Error ? err.message : "Failed to select event");
+      const msg = err instanceof Error ? err.message : "Failed to select event";
+      if (msg !== "Payment cancelled") setSelectError(msg);
     } finally {
       setSelecting(false);
     }
@@ -271,6 +342,9 @@ function DashboardContent({ session }: { session: SessionData }) {
                           <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>📅 {formatDateTime(ev.dateTime)}</span>
                           <span style={{ fontSize: "11px", color: isFull ? "var(--red)" : "var(--muted)", fontWeight: 600 }}>
                             👥 {ev.registrationCount}/{ev.capacity} {isFull ? "(Full)" : "spots"}
+                          </span>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
+                            {(ev.price ?? 0) === 0 ? "🆓 Free" : `💰 ₹${ev.price}`}
                           </span>
                         </div>
                       </div>
