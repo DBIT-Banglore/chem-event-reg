@@ -1082,14 +1082,24 @@ export default function AdminPage() {
                                     className="btn-danger"
                                     style={{
                                         flex: 1, padding: "14px",
-                                        opacity: (resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? 0.35 : 1,
-                                        cursor: (resetLoading || resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? "not-allowed" : "pointer",
+                                        opacity: resetLoading ? 1 : (resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? 0.35 : 1,
+                                        cursor: resetLoading ? "default" : (resetPhrase.trim() !== "RESET DATABASE" || !resetPassword) ? "not-allowed" : "pointer",
                                         display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                        pointerEvents: resetLoading ? "none" : undefined,
                                     }}
                                 >
-                                    {resetLoading
-                                        ? <><div className="spinner" style={{ width: 14, height: 14, borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> Resetting…</>
-                                        : <><Eraser style={{ width: 14, height: 14 }} /> ERASE DATA</>}
+                                    {resetLoading ? (
+                                        <>
+                                            <div style={{
+                                                width: 16, height: 16, border: "2.5px solid rgba(255,255,255,0.35)",
+                                                borderTopColor: "#fff", borderRadius: "50%",
+                                                animation: "spin 0.7s linear infinite", flexShrink: 0,
+                                            }} />
+                                            Resetting…
+                                        </>
+                                    ) : (
+                                        <><Eraser style={{ width: 14, height: 14 }} /> ERASE DATA</>
+                                    )}
                                 </button>
                             </div>
                         </form>
