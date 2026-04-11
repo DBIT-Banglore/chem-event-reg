@@ -74,6 +74,19 @@ export async function POST(req: NextRequest) {
     if (clearEvents) {
       await deleteCollection(adminDb, "events");
       deleted.push("events");
+    } else {
+      // Reset registrationCount to 0 on all events so capacity is accurate after reset
+      const eventsSnap = await adminDb.collection("events").get();
+      if (!eventsSnap.empty) {
+        for (let i = 0; i < eventsSnap.docs.length; i += 450) {
+          const batch = adminDb.batch();
+          eventsSnap.docs.slice(i, i + 450).forEach((d) =>
+            batch.update(d.ref, { registrationCount: 0 })
+          );
+          await batch.commit();
+        }
+        deleted.push("event registration counts reset");
+      }
     }
 
     return NextResponse.json({

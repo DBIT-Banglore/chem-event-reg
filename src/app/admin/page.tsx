@@ -211,7 +211,7 @@ export default function AdminPage() {
             setClearOtpCodes(true);
             setClearCSV(false);
             setClearEvents(false);
-            await fetchStudents();
+            await Promise.all([fetchStudents(), fetchEvents()]);
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : "Failed to reset database.";
             setResetError(msg);
