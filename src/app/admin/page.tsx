@@ -17,6 +17,9 @@ interface Student {
     branch: string;
     section: string;
     eventId: string | null;
+    paymentStatus: string | null;
+    paymentId: string | null;
+    paymentAmount: number | null;
 }
 
 type TabType = "dashboard" | "students" | "registrations" | "events" | "settings";
@@ -121,6 +124,9 @@ export default function AdminPage() {
                     name: d.name, usn: d.usn, phone: d.phone, email: d.email || "",
                     branch: d.branch, section: d.section,
                     eventId: d.eventId || null,
+                    paymentStatus: d.paymentStatus || null,
+                    paymentId: d.paymentId || null,
+                    paymentAmount: d.paymentAmount ?? null,
                 });
             });
             setStudents(data);
@@ -137,6 +143,9 @@ export default function AdminPage() {
                         name: d.name, usn: d.usn, phone: d.phone, email: d.email || "",
                         branch: d.branch, section: d.section,
                         eventId: d.eventId || null,
+                        paymentStatus: d.paymentStatus || null,
+                        paymentId: d.paymentId || null,
+                        paymentAmount: d.paymentAmount ?? null,
                     });
                 });
                 setStudents(data);
@@ -341,6 +350,9 @@ export default function AdminPage() {
             Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
             Branch: s.branch, Section: s.section,
             "Event Name": s.eventName || "", "Event ID": s.eventId || "",
+            "Payment Status": s.paymentStatus || "free",
+            "Transaction ID": s.paymentId || "",
+            "Amount Paid (₹)": s.paymentAmount != null ? s.paymentAmount : "",
         }));
         const sheets: Record<string, string | number | null | undefined>[][] = [allRows];
         const sheetNames = ["All Registrations"];
@@ -350,6 +362,10 @@ export default function AdminPage() {
                 .map(s => ({
                     Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
                     Branch: s.branch, Section: s.section,
+                    "Event Name": ev.name,
+                    "Payment Status": s.paymentStatus || "free",
+                    "Transaction ID": s.paymentId || "",
+                    "Amount Paid (₹)": s.paymentAmount != null ? s.paymentAmount : "",
                 }));
             sheets.push(eventRows);
             sheetNames.push(ev.name.slice(0, 31));
@@ -359,11 +375,13 @@ export default function AdminPage() {
 
     const handleExportEventCSV = (eventId: string, eventName: string) => {
         const rows = studentsWithEvents.filter(s => s.eventId === eventId);
-        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section"];
+        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Payment Status", "Transaction ID", "Amount Paid (INR)"];
         const csvContent = [
             headers.join(","),
             ...rows.map(s =>
-                [s.name, s.usn, s.email || "", s.phone, s.branch, s.section]
+                [s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
+                 eventName, s.paymentStatus || "free", s.paymentId || "",
+                 s.paymentAmount != null ? s.paymentAmount : ""]
                     .map(c => `"${String(c).replace(/"/g, '""')}"`)
                     .join(",")
             ),
