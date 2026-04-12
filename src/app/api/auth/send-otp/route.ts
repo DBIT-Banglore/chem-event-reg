@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 // ── Brevo multi-key round-robin with fallback ─────────────────────────────
@@ -187,8 +188,8 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
                 </table>
               </div>
               <div style="margin-top:16px;font-size:13px;color:#9a9a9a;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
-                Click to autofill:&nbsp;
-                <a href="${baseUrl}/register?otp=${otp}" style="color:#ffffff;letter-spacing:8px;font-weight:700;font-family:Arial,Helvetica,sans-serif;text-decoration:none;background:#2a2a2a;padding:4px 8px;border:1px solid #4a4a4a;">${otp}</a>
+                Your code:&nbsp;
+                <span style="color:#ffffff;letter-spacing:8px;font-weight:700;font-family:Arial,Helvetica,sans-serif;background:#2a2a2a;padding:4px 8px;border:1px solid #4a4a4a;">${otp}</span>
               </div>
             </td>
           </tr>
@@ -261,6 +262,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "USN is required" }, { status: 400 });
     }
 
+    // Validate email format and length (defense against injection and large payloads)
+    const emailCandidate = email.trim().toLowerCase();
+    if (emailCandidate.length > 254 || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(emailCandidate)) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
+
     // IP rate limiting: 5 sends per IP per 15 min
     const ip = getClientIP(req);
     const { allowed, retryAfterMs } = rateLimit(ip, "send-otp", 5, 15 * 60 * 1000);
@@ -272,7 +279,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = emailCandidate;
     const cleanUSN = usn.trim().toUpperCase();
     const adminDb = getAdminFirestore();
 

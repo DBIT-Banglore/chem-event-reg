@@ -10,11 +10,14 @@ export async function POST(req: NextRequest) {
   try {
     const { email, otp, usn } = await req.json();
 
-    if (!email || !otp || !usn) {
-      return NextResponse.json(
-        { error: "Email, OTP, and USN are required" },
-        { status: 400 }
-      );
+    if (!email || typeof email !== "string") {
+      return NextResponse.json({ error: "Email, OTP, and USN are required" }, { status: 400 });
+    }
+    if (!otp || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+      return NextResponse.json({ error: "OTP must be a 6-digit code" }, { status: 400 });
+    }
+    if (!usn || typeof usn !== "string") {
+      return NextResponse.json({ error: "Email, OTP, and USN are required" }, { status: 400 });
     }
 
     // IP rate limiting: 10 attempts per IP per 15 min
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
     const usnCheck = validateUSN(cleanUSN);
     if (!usnCheck.valid) {
       return NextResponse.json(
-        { error: usnCheck.error || "Invalid USN." },
+        { error: "Invalid USN or email combination." },
         { status: 400 }
       );
     }
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
     const storedEmail = (regDoc.exists ? regDoc.data()?.email : studentDoc.exists ? studentDoc.data()?.email : null);
     if (storedEmail && storedEmail.trim().toLowerCase() !== cleanEmail) {
       return NextResponse.json(
-        { error: "Email does not match the USN on record." },
+        { error: "Invalid USN or email combination." },
         { status: 400 }
       );
     }

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import Razorpay from "razorpay";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSessionFromRequest } from "@/lib/jwt";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +19,25 @@ export async function POST(req: NextRequest) {
     }
     const usn = payload.usn as string;
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, eventId, eventId2, slot = 1 } = await req.json();
+    // Rate limit: 10 payment verifications per hour per user
+    const rl = rateLimit(usn, "payment-verify", 10, 60 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many payment attempts. Try again later." }, { status: 429 });
+    }
+
+    const body = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, eventId, eventId2 } = body;
+
+    // Validate slot strictly
+    const rawSlot = body.slot;
+    let slot: 1 | 2 = 1;
+    if (rawSlot !== undefined && rawSlot !== null) {
+      if (rawSlot === 2 || rawSlot === "2") {
+        slot = 2;
+      } else if (rawSlot !== 1 && rawSlot !== "1") {
+        return NextResponse.json({ error: "slot must be 1 or 2" }, { status: 400 });
+      }
+    }
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !eventId) {
       return NextResponse.json({ error: "Missing payment details" }, { status: 400 });
@@ -26,6 +51,43 @@ export async function POST(req: NextRequest) {
 
     if (expectedSig !== razorpay_signature) {
       return NextResponse.json({ error: "Payment verification failed. Invalid signature." }, { status: 400 });
+    }
+
+    // C-1 FIX: Fetch the order from Razorpay server-side to verify notes/amount
+    // This prevents eventId swap attacks where an attacker pays for a cheap event
+    // but submits an expensive eventId in the verify POST body.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let razorpayOrder: Record<string, any>;
+    try {
+      razorpayOrder = await razorpay.orders.fetch(razorpay_order_id) as Record<string, any>;
+    } catch {
+      console.error("[payment/verify] Failed to fetch Razorpay order", razorpay_order_id);
+      return NextResponse.json({ error: "Could not verify order with payment provider" }, { status: 502 });
+    }
+
+    // Verify order belongs to this authenticated user
+    const orderUsn = (razorpayOrder.notes as Record<string, string>)?.usn;
+    if (!orderUsn || orderUsn.toUpperCase() !== usn.toUpperCase()) {
+      return NextResponse.json({ error: "Order does not belong to this account" }, { status: 403 });
+    }
+
+    // Cross-check eventId(s) against what was set server-side at order creation
+    const orderEventId = (razorpayOrder.notes as Record<string, string>)?.eventId;
+    const orderEventId2 = (razorpayOrder.notes as Record<string, string>)?.eventId2;
+
+    if (orderEventId && orderEventId !== eventId) {
+      return NextResponse.json({ error: "Event mismatch — payment cannot be applied to a different event" }, { status: 400 });
+    }
+    if (eventId2 && orderEventId2 && orderEventId2 !== eventId2) {
+      return NextResponse.json({ error: "Event 2 mismatch — payment cannot be applied" }, { status: 400 });
+    }
+
+    // Verify the paid amount matches expected (prevent underpayment)
+    const expectedAmountPaise = Number(razorpayOrder.amount);
+    const paidAmountPaise = Number(razorpayOrder.amount_paid ?? razorpayOrder.amount);
+    if (paidAmountPaise < expectedAmountPaise) {
+      console.error(`[payment/verify] Underpayment: expected ${expectedAmountPaise}, got ${paidAmountPaise}`);
+      return NextResponse.json({ error: "Insufficient payment amount" }, { status: 400 });
     }
 
     const db = getAdminFirestore();

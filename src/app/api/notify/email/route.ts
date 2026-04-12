@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getSessionFromRequest } from "@/lib/jwt";
+import { rateLimit } from "@/lib/rate-limit";
 
 // ── Brevo multi-key round-robin with fallback (separate counter from OTP) ──
 
@@ -404,6 +405,13 @@ export async function POST(req: NextRequest) {
     const session = await getSessionFromRequest(req);
     if (!session) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Rate limit: 10 notification emails per hour per user
+    const sessionUsn = (session.usn as string) || "";
+    const rl = rateLimit(sessionUsn, "notify-email", 10, 60 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Email rate limit exceeded. Try again later." }, { status: 429 });
     }
 
     const { type, toUSN, fromName, teamName, teamId, inviteId } = await req.json();

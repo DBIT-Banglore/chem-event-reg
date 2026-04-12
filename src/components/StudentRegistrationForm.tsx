@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
 import { signInWithCustomToken } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, getDocs, limit, serverTimestamp } from "firebase/firestore";
-import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
+import { collection, query, getDocs, limit } from "firebase/firestore";
+import { validateUSN } from "@/lib/usnValidator";
 import { setSession } from "@/lib/session";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, PencilLine, Lock, Loader2, Mail, ShieldCheck, RotateCcw, CalendarDays, AlertCircle } from "lucide-react";
@@ -276,7 +276,6 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         setSession({
           usn: data.user.usn,
           name: data.user.name,
-          email: data.user.email,
           branch: data.user.branch,
           section: data.user.section,
           eventId: data.user.eventId || null,
@@ -318,53 +317,35 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       if (!studentInfo.phone.trim() || !/^\d{10}$/.test(studentInfo.phone.trim()))
         throw new Error("Please enter a valid 10-digit phone number.");
 
-      // Final CSV validation
-      const studentDoc = await getDoc(doc(db, "students", upperUSN));
-      const existingDoc = await getDoc(doc(db, "registrations", upperUSN));
+      // Create registration via server API (server validates and writes — no client Firestore writes)
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: studentInfo.name.trim(),
+          email: emailInput.trim(),
+          phone: studentInfo.phone.trim(),
+        }),
+      });
 
-      if (!studentDoc.exists() && !existingDoc.exists()) {
-        throw new Error("USN not found in the student database. Admin must upload the CSV first.");
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Registration failed.");
 
-      if (existingDoc.exists()) {
-        const data = existingDoc.data();
-        setSession({
-          usn: upperUSN,
-          name: data.name,
-          email: data.email || emailInput.trim(),
-          branch: data.branch,
-          section: data.section,
-          eventId: data.eventId || null,
-          registeredAt: new Date().toISOString(),
-        });
+      const userData = data.user;
+      setSession({
+        usn: userData.usn,
+        name: userData.name,
+        branch: userData.branch,
+        section: userData.section,
+        eventId: userData.eventId || null,
+        registeredAt: new Date().toISOString(),
+      });
+
+      if (data.alreadyRegistered) {
         if (onRegistered) { onRegistered(); return; }
         window.location.href = redirectTo || "/dashboard";
         return;
       }
-
-      const branch = studentInfo.branch || getBranchName(upperUSN);
-      const section = studentInfo.section || getSection(upperUSN);
-
-      await setDoc(doc(db, "registrations", upperUSN), {
-        name: studentInfo.name.trim(),
-        usn: upperUSN,
-        email: emailInput.trim(),
-        phone: studentInfo.phone.trim(),
-        branch,
-        section,
-        eventId: null,
-        registeredAt: serverTimestamp(),
-      });
-
-      setSession({
-        usn: upperUSN,
-        name: studentInfo.name.trim(),
-        email: emailInput.trim(),
-        branch,
-        section,
-        eventId: null,
-        registeredAt: new Date().toISOString(),
-      });
 
       if (onRegistered) { onRegistered(); return; }
       await fetchEvents();

@@ -3,10 +3,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Students — read-only for authenticated users (admin SDK writes)
+    // Students — NO client access (all reads/writes via admin SDK only)
+    // Previously: allow read for all authenticated users — FIXED: was exposing entire student DB
     match /students/{usn} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read, write: if false;
     }
 
     // Config — publicly readable (registration status flags, non-sensitive)
@@ -16,12 +16,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Registrations — create only your own; update only your own
-    // Event selection updates happen via admin SDK (select-event route)
+    // Registrations — read your own only; NO client writes (all writes via server API)
+    // Previously: allow create/update for authenticated users — FIXED: prevented forging paymentStatus
     match /registrations/{usn} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == usn;
-      allow update: if request.auth != null && request.auth.uid == usn;
+      allow read: if request.auth != null && request.auth.uid == usn;
+      allow write: if false;
     }
 
     // Notifications — no longer used; deny all client access

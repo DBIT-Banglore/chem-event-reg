@@ -211,7 +211,7 @@ function DashboardContent({ session }: { session: SessionData }) {
               reject(err);
             }
           },
-          prefill: { name: session.name || "", email: session.email || "" },
+          prefill: { name: session.name || "" },
           theme: { color: "#E8341A" },
           modal: {
             ondismiss: () => reject(new Error("Payment cancelled")),
