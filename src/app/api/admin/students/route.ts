@@ -10,8 +10,18 @@ export async function PUT(req: NextRequest) {
 
     await getAdminAuth().verifyIdToken(idToken);
 
+    // Issue #9: Apply field allowlist \u2014 prevent injection of arbitrary Firestore fields
+    const ALLOWED_FIELDS = ["name", "email", "phone", "branch", "section"];
+    const safeData: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in data) safeData[key] = data[key];
+    }
+    if (Object.keys(safeData).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
     const adminDb = getAdminFirestore();
-    await adminDb.collection("students").doc(usn).update(data);
+    await adminDb.collection("students").doc(usn).update(safeData);
 
     return NextResponse.json({ success: true });
   } catch (err) {

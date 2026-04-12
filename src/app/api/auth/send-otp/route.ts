@@ -1,101 +1,23 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
+import { sendEmail } from "@/lib/brevo";
 
+// Issue #1: Use a cryptographically secure RNG instead of Math.random()
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
-// ── Brevo multi-key round-robin with fallback ─────────────────────────────
-// Env format: BREVO_KEYS=apikey1:sender1@mail.com,apikey2:sender2@mail.com,...
-// Falls back to single BREVO_API_KEY + BREVO_SENDER_EMAIL if BREVO_KEYS is not set.
-
-interface BrevoCredential {
-  apiKey: string;
-  senderEmail: string;
+// Issue #2: Store an HMAC hash of the OTP rather than the plaintext value
+function hashOTP(otp: string): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET env var is not set");
+  return crypto.createHmac("sha256", secret).update(otp).digest("hex");
 }
 
-function getBrevoCredentials(): BrevoCredential[] {
-  const multi = process.env.BREVO_KEYS;
-  if (multi) {
-    return multi.split(",").map((entry) => {
-      const [apiKey, senderEmail] = entry.trim().split(":");
-      return { apiKey, senderEmail };
-    });
-  }
-  // Single key fallback
-  if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
-    return [{ apiKey: process.env.BREVO_API_KEY, senderEmail: process.env.BREVO_SENDER_EMAIL }];
-  }
-  return [];
-}
-
-// Simple round-robin counter (resets on server restart, which is fine)
-let rrIndex = 0;
-
-async function sendWithBrevo(
-  cred: BrevoCredential,
-  toEmail: string,
-  subject: string,
-  html: string
-): Promise<{ ok: boolean; status: number; error?: string }> {
-  try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "accept": "application/json",
-        "content-type": "application/json",
-        "api-key": cred.apiKey,
-      },
-      body: JSON.stringify({
-        sender: { name: "Idea Lab — DBIT", email: cred.senderEmail },
-        to: [{ email: toEmail }],
-        subject,
-        htmlContent: html,
-      }),
-    });
-
-    if (res.ok) return { ok: true, status: res.status };
-
-    const errData = await res.json().catch(() => ({}));
-    const errMsg = errData?.message || errData?.code || `HTTP ${res.status}`;
-    console.error(`Brevo key ...${cred.apiKey.slice(-8)} failed: ${errMsg}`);
-    return { ok: false, status: res.status, error: errMsg };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Network error";
-    console.error(`Brevo key ...${cred.apiKey.slice(-8)} exception: ${msg}`);
-    return { ok: false, status: 0, error: msg };
-  }
-}
-
-/**
- * Round-robin with fallback: start from the next key in rotation,
- * if it fails (rate limit / error), try the remaining keys in order.
- */
-async function sendEmailWithFallback(
-  toEmail: string,
-  subject: string,
-  html: string
-): Promise<void> {
-  const creds = getBrevoCredentials();
-  if (creds.length === 0) throw new Error("No Brevo API keys configured");
-
-  const startIdx = rrIndex % creds.length;
-  rrIndex++;
-
-  // Try starting from the round-robin pick, then wrap around
-  for (let attempt = 0; attempt < creds.length; attempt++) {
-    const idx = (startIdx + attempt) % creds.length;
-    const result = await sendWithBrevo(creds[idx], toEmail, subject, html);
-    if (result.ok) return;
-    // If rate-limited (429) or unauthorized (401), try next key
-    // For other errors, also try next key
-    console.warn(`Key ${idx + 1}/${creds.length} failed (${result.status}), trying next...`);
-  }
-
-  throw new Error("All Brevo API keys exhausted. Could not send email.");
-}
+// Issue #10: Brevo sending now delegated to shared lib/brevo.ts
 
 // ── Email template ────────────────────────────────────────────────────────
 
@@ -271,18 +193,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Store OTP in Firestore (admin SDK)
+    // Issue #2: Store HMAC hash of the OTP — not the plaintext value
     await adminDb.collection("otp_codes").add({
       email: cleanEmail,
-      otp,
+      otpHash: hashOTP(otp),
       expiresAt,
       used: false,
       attempts: 0,
       createdAt: now,
     });
 
-    // Send email with round-robin + fallback
-    await sendEmailWithFallback(
+    // Issue #10: Use shared Brevo utility
+    await sendEmail(
       cleanEmail,
       `${otp} is your Idea Lab verification code`,
       buildEmailHtml(otp)

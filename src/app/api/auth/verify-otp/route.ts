@@ -1,8 +1,16 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
 import { signSessionJWT, COOKIE_NAME } from "@/lib/jwt";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
+
+// Issue #2: HMAC hash — must match the hashOTP in send-otp/route.ts
+function hashOTP(otp: string): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET env var is not set");
+  return crypto.createHmac("sha256", secret).update(otp).digest("hex");
+}
 
 const MAX_ATTEMPTS = 5;
 
@@ -93,8 +101,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify OTP
-    if (otpData.otp !== otp.trim()) {
+    // Issue #2: Compare HMAC hashes — never store/compare plaintext OTPs
+    if (otpData.otpHash !== hashOTP(otp.trim())) {
       await otpDocRef.update({ attempts: otpData.attempts + 1 });
       return NextResponse.json(
         { error: "Invalid code. Please try again." },
