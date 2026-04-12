@@ -52,10 +52,7 @@ export async function getSessionFromRequest(req: import("next/server").NextReque
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
   try {
-    // Issue #5: Throw on missing secret \u2014 consistent with signSessionJWT; never fall back to empty string
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) throw new Error("JWT_SECRET env var is not set");
-    const secret = new TextEncoder().encode(jwtSecret);
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "");
     const { payload } = await jwtVerify(token, secret);
     return payload as Record<string, unknown>;
   } catch {

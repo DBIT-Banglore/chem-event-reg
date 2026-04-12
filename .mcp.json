@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "github-write": {
-      "command": "C:\\Program Files\\GitHub CLI\\gh.exe",
-      "args": ["mcp", "serve"],
-      "env": {}
-    }
-  }
-}

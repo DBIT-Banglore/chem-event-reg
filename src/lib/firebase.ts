@@ -1,17 +1,14 @@
 /**
- * Firebase Client SDK — browser-only singleton
- *
- * This file is imported by "use client" components only.
- * It is NOT safe to import from server code or from modules that
- * run during SSR/build phases — doing so causes:
- *   TypeError: (0 , _appinfolog.getEnvInfo) is not a function
- * because Firebase v12 tries to detect the browser environment at
- * module-load time which breaks in Node.js contexts.
+ * Firebase Configuration
+ * 
+ * Initializes the Firebase app, Firestore database, and Authentication.
+ * Uses environment variables from .env.local for configuration.
+ * Implements singleton pattern to prevent multiple initializations.
  */
 
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getAuth, type Auth } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,45 +19,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Lazy singletons — only initialized when first accessed IN THE BROWSER.
-// Top-level code intentionally does NOT call initializeApp() so that
-// Next.js SSR module-graph tracing never triggers Firebase's env detection.
-let _app: FirebaseApp | null = null;
-let _db: Firestore | null = null;
-let _auth: Auth | null = null;
+// Initialize Firebase only once (singleton pattern)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-function getFirebaseApp(): FirebaseApp {
-  if (!_app) {
-    _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  }
-  return _app;
-}
+// Firestore database instance
+export const db = getFirestore(app);
 
-export function getDb(): Firestore {
-  if (!_db) _db = getFirestore(getFirebaseApp());
-  return _db;
-}
+// Firebase Authentication instance
+export const auth = getAuth(app);
 
-export function getClientAuth(): Auth {
-  if (!_auth) _auth = getAuth(getFirebaseApp());
-  return _auth;
-}
-
-// Convenience re-exports as getters so existing code that does
-//   import { db, auth } from "@/lib/firebase"
-// still compiles — but the values are now lazy.
-export const db = new Proxy({} as Firestore, {
-  get(_t, prop) {
-    return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
-  },
-});
-
-export const auth = new Proxy({} as Auth, {
-  get(_t, prop) {
-    return (getClientAuth() as unknown as Record<string | symbol, unknown>)[prop];
-  },
-});
-
-export default {
-  get app() { return getFirebaseApp(); },
-};
+export default app;

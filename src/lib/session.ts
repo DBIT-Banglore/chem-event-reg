@@ -3,13 +3,11 @@
  *
  * localStorage functions remain for UI data cache.
  * New functions handle JWT cookie auth + Firebase custom token auth.
- *
- * NOTE: Firebase imports are kept inside functions (lazy) so this file
- * is safe to statically import from any module without triggering the
- * Firebase SDK's env-detection code at module-load time.
  */
 
 import { SessionData } from "./types";
+import { signInWithCustomToken, signOut } from "firebase/auth";
+import { auth } from "./firebase";
 
 const SESSION_KEY = "idealab_session";
 
@@ -52,16 +50,9 @@ export function updateSessionEvent(eventId: string | null): void {
 /**
  * Check if Firebase Auth is active; if not, call /api/auth/firebase-token
  * to get a custom token and sign in. Returns true if auth is active/restored.
- *
- * Firebase imports are inside the function body so they are never evaluated
- * at module-load time (which would crash during Next.js SSR/build).
  */
 export async function initializeAuth(): Promise<boolean> {
-  // Lazy-import to avoid executing Firebase SDK at module load time
-  const { getClientAuth } = await import("./firebase");
-  const { signInWithCustomToken } = await import("firebase/auth");
-
-  const auth = getClientAuth();
+  // If already signed in, we're good
   if (auth.currentUser) return true;
 
   try {
@@ -85,9 +76,7 @@ export async function fullLogout(): Promise<void> {
   clearSession();
 
   try {
-    const { getClientAuth } = await import("./firebase");
-    const { signOut } = await import("firebase/auth");
-    await signOut(getClientAuth());
+    await signOut(auth);
   } catch {
     // Ignore Firebase signout errors
   }
