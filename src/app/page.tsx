@@ -101,12 +101,6 @@ export default function Home() {
                   </svg>
                 </Link>
               )}
-              <Link href="/status" className="btn-outline">
-                Check Status
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                </svg>
-              </Link>
             </div>
           </div>
         </div>
@@ -225,9 +219,9 @@ export default function Home() {
             {[
               { q: "Who can register?", a: "Any DBIT student whose USN is present in the student database uploaded by the admin. If your USN is not found, contact the Chemistry department to get it added." },
               { q: "How do I verify my identity?", a: "After entering your USN, an OTP is sent to your college email address (USN@dbit.in). Enter the OTP to proceed. The OTP is valid for 10 minutes." },
-              { q: "Can I change my event after registering?", a: "Yes! As long as registrations are open, you can go to your Dashboard and change your selected event. Capacity is checked in real-time — if the new event is full, you'll be notified." },
+              { q: "Can I change my event after registering?", a: "No. Once you select and confirm an event, your choice is final. Please choose your event carefully before confirming. Contact the Chemistry department admin if you have special circumstances." },
               { q: "What happens if an event is full?", a: "Full events are clearly marked and cannot be selected. Choose another available event. Contact the admin if you need assistance." },
-              { q: "How do I check my registration status?", a: "Visit the Status page and enter your USN, or log in to your Dashboard to see your current event selection and profile details." },
+              { q: "How do I check my registration status?", a: "Log in to your Dashboard to see your current event selection and profile details." },
             ].map(({ q, a }) => (
               <div className="faq-item" key={q}>
                 <button className="faq-q" onClick={toggleFaq}>
@@ -273,22 +267,18 @@ export default function Home() {
               </svg>
             </Link>
           )}
-          <Link href="/status" className="btn-outline">
-            Check Status
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-            </svg>
-          </Link>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer>
-        <span className="footer-brand">© 2026 Chem Event Reg — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
+        <span className="footer-brand">© 2026 Event Registration — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
         <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>Built by Dept. of CSE, Section B — DBIT</span>
+        <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)", opacity: 0.7 }}>
+          Made by B Section CSE Students: Harsha N, Mithun Gowda B, Naren V, Nevil Anson Dsouza, Lekhan H R &amp; Manasvi R
+        </span>
         <div className="footer-links">
           <Link href="/register">Register</Link>
-          <Link href="/status">Status</Link>
           <Link href="/admin">Admin</Link>
         </div>
       </footer>

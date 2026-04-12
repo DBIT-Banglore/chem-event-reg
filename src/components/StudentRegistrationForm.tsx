@@ -371,7 +371,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
         </div>
         <h3 style={{ fontFamily: "var(--bebas)", fontSize: "28px", color: "var(--ink)" }}>Registrations Closed</h3>
         <p style={{ color: "var(--muted)", fontSize: "14px", maxWidth: "320px", margin: "0 auto", lineHeight: 1.7 }}>
-          The registration window for <strong style={{ color: "var(--ink)" }}>Idea Lab</strong> is currently closed.
+          The registration window for <strong style={{ color: "var(--ink)" }}>Event Registration</strong> is currently closed.
         </p>
       </div>
     );
@@ -717,7 +717,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
 
           <div>
             <h3 style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.04em", marginBottom: "4px" }}>Select Your Event</h3>
-            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Choose the event you want to participate in. You can change this later from your dashboard.</p>
+            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Choose the event you want to participate in. <strong style={{ color: "var(--red)" }}>Your selection is final</strong> — choose carefully before confirming.</p>
           </div>
 
           {eventsLoading ? (

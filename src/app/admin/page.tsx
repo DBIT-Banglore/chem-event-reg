@@ -458,9 +458,9 @@ export default function AdminPage() {
             <aside className="admin-sidebar">
                 <div className="admin-sidebar-header" style={{ padding: "24px", borderBottom: "1.5px solid var(--ink)", background: "var(--paper)", display: "flex", alignItems: "center", gap: "12px" }}>
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Lightbulb style={{ width: 16, height: 16, color: "var(--paper)" }} />
+                        <CalendarDays style={{ width: 16, height: 16, color: "var(--paper)" }} />
                     </div>
-                    <span className="admin-sidebar-logo-text" style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em" }}>IDEA LAB</span>
+                    <span className="admin-sidebar-logo-text" style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em" }}>EVENT REG</span>
                 </div>
 
                 <div style={{ padding: "12px 8px", display: "flex", flexDirection: "column", gap: "2px", flex: 1 }}>
@@ -527,9 +527,9 @@ export default function AdminPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Lightbulb style={{ width: 14, height: 14, color: "var(--paper)" }} />
+                            <CalendarDays style={{ width: 14, height: 14, color: "var(--paper)" }} />
                         </div>
-                        <span style={{ fontFamily: "var(--bebas)", fontSize: "16px" }}>IDEA LAB</span>
+                        <span style={{ fontFamily: "var(--bebas)", fontSize: "16px" }}>EVENT REG</span>
                     </div>
                     <button onClick={handleLogout} style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--red)", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.08em" }}>Sign Out</button>
                 </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
+import { validateUSN } from "@/lib/usnValidator";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
 /**
  * POST /api/auth/lookup-usn
@@ -11,6 +12,16 @@ import { validateUSN, getBranchName, getSection } from "@/lib/usnValidator";
  */
 export async function POST(req: NextRequest) {
   try {
+    // Issue #8: Rate limit — 20 lookups per IP per 15 minutes to prevent roster enumeration
+    const ip = getClientIP(req);
+    const { allowed, retryAfterMs } = rateLimit(ip, "lookup-usn", 20, 15 * 60 * 1000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Try again in ${Math.ceil(retryAfterMs / 1000)}s.` },
+        { status: 429 }
+      );
+    }
+
     const { usn } = await req.json();
 
     if (!usn || typeof usn !== "string") {
@@ -62,13 +73,22 @@ export async function POST(req: NextRequest) {
     const studentDoc = await adminDb.collection("students").doc(cleanUSN).get();
     if (studentDoc.exists) {
       const data = studentDoc.data()!;
+      // Issue #7: Apply same email masking as returning students — don't expose raw email to unauthenticated callers
+      const email = data.email || "";
+      const [local, domain] = email.split("@");
+      let maskedEmail = email;
+      if (domain) {
+        maskedEmail = local.length <= 2
+          ? `${local[0]}***@${domain}`
+          : `${local[0]}${"*".repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
+      }
+
       return NextResponse.json({
         found: true,
         returning: false,
         student: {
           name: data.name || "",
-          email: data.email || "",
-          maskedEmail: "",
+          maskedEmail,
           phone: data.phone || "",
           branch: data.branch || check.branch || "",
           section: data.section || check.section || "",

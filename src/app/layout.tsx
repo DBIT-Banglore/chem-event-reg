@@ -4,7 +4,7 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Chem Event Reg — DBIT Bangalore",
+  title: "Event Registration — DBIT Bangalore",
   description: "Register for Chemistry department events at Don Bosco Institute of Technology, Bangalore.",
 };
 
