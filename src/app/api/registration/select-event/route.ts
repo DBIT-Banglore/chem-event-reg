@@ -29,14 +29,6 @@ export async function POST(req: NextRequest) {
     const eventData = eventDoc.data()!;
     if (!eventData.isActive) return NextResponse.json({ error: "This event is not available." }, { status: 400 });
 
-    // Issue #4: Block payment bypass — paid events must go through the Razorpay payment flow
-    if ((eventData.price || 0) > 0) {
-      return NextResponse.json(
-        { error: "This event requires payment. Please use the payment flow." },
-        { status: 403 }
-      );
-    }
-
     // Get current registration
     const regDoc = await db.collection("registrations").doc(usn).get();
     if (!regDoc.exists) return NextResponse.json({ error: "Registration not found." }, { status: 404 });

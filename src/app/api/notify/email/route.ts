@@ -1,12 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { getSessionFromRequest } from "@/lib/jwt";
-import { rateLimit, getClientIP } from "@/lib/rate-limit";
-import { sendEmail } from "@/lib/brevo";
+
+// ── Brevo multi-key round-robin with fallback (separate counter from OTP) ──
+
+interface BrevoCredential {
+  apiKey: string;
+  senderEmail: string;
+}
+
+function getBrevoCredentials(): BrevoCredential[] {
+  const multi = process.env.BREVO_KEYS;
+  if (multi) {
+    return multi.split(",").map((entry) => {
+      const [apiKey, senderEmail] = entry.trim().split(":");
+      return { apiKey, senderEmail };
+    });
+  }
+  if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+    return [{ apiKey: process.env.BREVO_API_KEY, senderEmail: process.env.BREVO_SENDER_EMAIL }];
+  }
+  return [];
+}
+
+let notifyRRIndex = 0;
+
+async function sendWithBrevo(
+  cred: BrevoCredential,
+  toEmail: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; status: number; error?: string }> {
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": cred.apiKey,
+      },
+      body: JSON.stringify({
+        sender: { name: "Idea Lab — DBIT", email: cred.senderEmail },
+        to: [{ email: toEmail }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+
+    if (res.ok) return { ok: true, status: res.status };
+
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData?.message || errData?.code || `HTTP ${res.status}`;
+    console.error(`[notify] Brevo key ...${cred.apiKey.slice(-8)} failed: ${errMsg}`);
+    return { ok: false, status: res.status, error: errMsg };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Network error";
+    console.error(`[notify] Brevo key ...${cred.apiKey.slice(-8)} exception: ${msg}`);
+    return { ok: false, status: 0, error: msg };
+  }
+}
+
+async function sendEmailWithFallback(
+  toEmail: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  const creds = getBrevoCredentials();
+  if (creds.length === 0) throw new Error("No Brevo API keys configured");
+
+  const startIdx = notifyRRIndex % creds.length;
+  notifyRRIndex++;
+
+  for (let attempt = 0; attempt < creds.length; attempt++) {
+    const idx = (startIdx + attempt) % creds.length;
+    const result = await sendWithBrevo(creds[idx], toEmail, subject, html);
+    if (result.ok) return;
+    console.warn(`[notify] Key ${idx + 1}/${creds.length} failed (${result.status}), trying next...`);
+  }
+
+  throw new Error("All Brevo API keys exhausted. Could not send notification email.");
+}
 
 // ── Email templates ─────────────────────────────────────────────────────
 
 function getAppUrl(req: NextRequest): string {
+  // Auto-detect from request headers — no env var needed
   const origin = req.headers.get("origin");
   if (origin) return origin;
   const host = req.headers.get("host");
@@ -45,7 +122,7 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
           <td style="background:#0D0D0D;padding:16px 32px;border-bottom:1.5px solid #0D0D0D;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#128197; EVENT REGISTRATION</td>
+                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#9788; IDEA LAB</td>
                 <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;color:#7A7670;text-transform:uppercase;letter-spacing:2px;">DBIT</td>
               </tr>
             </table>
@@ -128,7 +205,7 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
           <td style="background:#0D0D0D;padding:16px 32px;border-bottom:1.5px solid #0D0D0D;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#128197; EVENT REGISTRATION</td>
+                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#9788; IDEA LAB</td>
                 <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;color:#7A7670;text-transform:uppercase;letter-spacing:2px;">DBIT</td>
               </tr>
             </table>
@@ -195,33 +272,10 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
 
 export async function POST(req: NextRequest) {
   try {
-    // Issue #3: Require a valid JWT session — unauthenticated callers cannot send emails
-    const payload = await getSessionFromRequest(req);
-    if (!payload?.usn) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-    const senderUSN = payload.usn as string;
-
-    // Issue #3: IP rate limit — 5 notification emails per IP per 15 minutes
-    const ip = getClientIP(req);
-    const { allowed, retryAfterMs } = rateLimit(ip, "notify-email", 5, 15 * 60 * 1000);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: `Too many requests. Try again in ${Math.ceil(retryAfterMs / 1000)}s.` },
-        { status: 429 }
-      );
-    }
-
     const { type, toUSN, fromName, teamName, teamId, inviteId } = await req.json();
 
     if (!type || !toUSN || !fromName || !teamName || !teamId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
-    // Issue #3: Verify the authenticated user's name matches fromName to prevent spoofing
-    const senderName = payload.name as string | undefined;
-    if (senderName && senderName.toLowerCase() !== (fromName as string).toLowerCase()) {
-      return NextResponse.json({ error: "fromName does not match authenticated user" }, { status: 403 });
     }
 
     if (type === "invite" && !inviteId) {
@@ -240,15 +294,14 @@ export async function POST(req: NextRequest) {
     const toEmail = regDoc.data()!.email;
     const baseUrl = getAppUrl(req);
 
-    // Issue #10: Use shared Brevo utility (single round-robin counter)
     if (type === "invite") {
-      await sendEmail(
+      await sendEmailWithFallback(
         toEmail,
         `${fromName} invited you to join ${teamName} — Idea Lab`,
         buildInviteEmail(fromName, teamName, inviteId, baseUrl)
       );
     } else if (type === "request") {
-      await sendEmail(
+      await sendEmailWithFallback(
         toEmail,
         `${fromName} wants to join ${teamName} — Idea Lab`,
         buildRequestEmail(fromName, teamName, baseUrl)
@@ -256,9 +309,6 @@ export async function POST(req: NextRequest) {
     } else {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
-
-    // Suppress sender USN lint warning
-    void senderUSN;
 
     return NextResponse.json({ success: true });
   } catch (err) {

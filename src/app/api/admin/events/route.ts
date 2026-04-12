@@ -64,18 +64,6 @@ export async function PUT(req: NextRequest) {
     if (safeUpdates.capacity) safeUpdates.capacity = Number(safeUpdates.capacity);
     if ("price" in safeUpdates) safeUpdates.price = Number(safeUpdates.price) || 0;
 
-    // Issue #6: Prevent capacity from being set below the current registration count
-    if ("capacity" in safeUpdates) {
-      const eventDoc = await db.collection("events").doc(eventId).get();
-      const currentCount = eventDoc.data()?.registrationCount || 0;
-      if ((safeUpdates.capacity as number) < currentCount) {
-        return NextResponse.json(
-          { error: `Cannot reduce capacity below current registrations (${currentCount}).` },
-          { status: 400 }
-        );
-      }
-    }
-
     await db.collection("events").doc(eventId).update(safeUpdates);
     return NextResponse.json({ success: true });
   } catch (err) {

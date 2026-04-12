@@ -4,10 +4,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ["192.0.0.4", "localhost"],
 
-  // Ensure Next.js transpiles Firebase ESM packages correctly
-  // to prevent "getEnvInfo is not a function" at runtime.
-  transpilePackages: ["firebase", "@firebase/app", "@firebase/auth", "@firebase/firestore"],
-
   async headers() {
     return [
       {

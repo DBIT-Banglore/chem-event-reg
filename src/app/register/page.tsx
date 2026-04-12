@@ -26,7 +26,7 @@ export default function RegisterPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 style={{ fontFamily: "var(--bebas)", fontSize: "42px", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "8px" }}>
-              Register for an Event
+              Join Idea Lab
             </h1>
             <p style={{ color: "var(--muted)", fontSize: "14px" }}>
               Enter your USN to register. Your details will be auto-filled from the student database.
@@ -41,7 +41,7 @@ export default function RegisterPage() {
             <div style={{ fontSize: "13px" }}>
               <p style={{ fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>How it works</p>
               <p style={{ color: "var(--muted)" }}>
-                Register with your USN, verify your college email, then select the event you want to participate in. Each student registers individually.
+                Register with your USN, verify your email, then select the event or theme you want to participate in. No team needed — this is individual participation!
               </p>
             </div>
           </div>
