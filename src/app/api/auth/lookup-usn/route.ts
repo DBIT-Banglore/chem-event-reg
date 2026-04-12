@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { validateUSN } from "@/lib/usnValidator";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
+
+/** Masks an email so only the first/last char of local part are visible. */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain || !local) return "***@***";
+  if (local.length <= 2) return `${local[0]}***@${domain}`;
+  return `${local[0]}${"*".repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
+}
 
 /**
  * POST /api/auth/lookup-usn
  *
- * Looks up a USN in registrations and students collections (admin SDK).
- * Used before authentication — the client can't query Firestore directly
- * because rules require auth != null.
- *
- * NOTE: For status lookups, registered students are found directly by USN doc
- * before any format/list validation, so all registered users can check status.
+ * Looks up a USN — used before authentication to prefill the registration form.
+ * Returns ONLY non-sensitive info: name, branch, section, masked email.
+ * Phone numbers and real email addresses are NEVER returned.
  */
 export async function POST(req: NextRequest) {
   try {
+    // ── Rate limiting: 5/min per IP + 30/hr per IP ──────────────────────────
+    const ip = getClientIP(req);
+    const perMin = rateLimit(ip, "lookup-usn-min", 5, 60 * 1000);
+    if (!perMin.allowed) {
+      const sec = Math.ceil(perMin.retryAfterMs / 1000);
+      return NextResponse.json(
+        { error: `Too many requests. Please wait ${sec}s before trying again.` },
+        { status: 429 }
+      );
+    }
+    const perHour = rateLimit(ip, "lookup-usn-hr", 30, 60 * 60 * 1000);
+    if (!perHour.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again in an hour." },
+        { status: 429 }
+      );
+    }
+
     const { usn } = await req.json();
 
     if (!usn || typeof usn !== "string") {
@@ -22,62 +46,42 @@ export async function POST(req: NextRequest) {
 
     const cleanUSN = usn.trim().toUpperCase();
 
-    // Basic length/character sanity check (not strict list validation)
     if (!/^[A-Z0-9]{6,12}$/.test(cleanUSN)) {
       return NextResponse.json({ found: false, error: "Invalid USN format." }, { status: 400 });
     }
 
     const adminDb = getAdminFirestore();
 
-    // ── 1. Check registrations FIRST (no list validation needed — direct doc lookup) ──
+    // ── 1. Check registrations FIRST ────────────────────────────────────────
     const regDoc = await adminDb.collection("registrations").doc(cleanUSN).get();
     if (regDoc.exists) {
       const data = regDoc.data()!;
-      const email = data.email || "";
-      const [local, domain] = email.split("@");
-      let maskedEmail = email;
-      if (domain) {
-        maskedEmail = local.length <= 2
-          ? `${local[0]}***@${domain}`
-          : `${local[0]}${"*".repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
-      }
 
-      // Fetch event name for slot 1
-      const eventId = data.eventId || null;
-      let eventName: string | null = null;
-      if (eventId) {
-        const eventDoc = await adminDb.collection("events").doc(eventId).get();
-        if (eventDoc.exists) eventName = eventDoc.data()?.name || null;
-      }
-
-      // Fetch event name for slot 2
-      const eventId2 = data.eventId2 || null;
-      let eventName2: string | null = null;
-      if (eventId2) {
-        const eventDoc2 = await adminDb.collection("events").doc(eventId2).get();
-        if (eventDoc2.exists) eventName2 = eventDoc2.data()?.name || null;
-      }
+      // Fetch event names in parallel
+      const [ev1Snap, ev2Snap] = await Promise.all([
+        data.eventId ? adminDb.collection("events").doc(data.eventId).get() : Promise.resolve(null),
+        data.eventId2 ? adminDb.collection("events").doc(data.eventId2).get() : Promise.resolve(null),
+      ]);
 
       return NextResponse.json({
         found: true,
         returning: true,
-        eventId,
-        eventName,
-        eventId2,
-        eventName2,
+        eventId: data.eventId || null,
+        eventName: ev1Snap?.exists ? ev1Snap.data()?.name || null : null,
+        eventId2: data.eventId2 || null,
+        eventName2: ev2Snap?.exists ? ev2Snap.data()?.name || null : null,
         student: {
           usn: cleanUSN,
           name: data.name || "",
-          email: data.email || "",
-          maskedEmail,
-          phone: data.phone || "",
+          // Never expose real email or phone — masked display only
+          maskedEmail: maskEmail(data.email || ""),
           branch: data.branch || "",
           section: data.section || "",
         },
       });
     }
 
-    // ── 2. Not registered yet — validate format + check students collection ──
+    // ── 2. Not registered yet — validate + check students collection ─────────
     const check = validateUSN(cleanUSN);
     if (!check.valid) {
       return NextResponse.json(
@@ -94,9 +98,8 @@ export async function POST(req: NextRequest) {
         returning: false,
         student: {
           name: data.name || "",
-          email: data.email || "",
-          maskedEmail: "",
-          phone: data.phone || "",
+          // Never expose real email or phone
+          maskedEmail: maskEmail(data.email || ""),
           branch: data.branch || check.branch || "",
           section: data.section || check.section || "",
         },
