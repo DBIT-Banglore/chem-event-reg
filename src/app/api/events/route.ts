@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
+import type { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const ip = getClientIP(req);
+  const rl = rateLimit(ip, "events", 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
   try {
     const db = getAdminFirestore();
     const snap = await db.collection("events").get();

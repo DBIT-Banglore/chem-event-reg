@@ -24,14 +24,17 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
     section?: string;
   }>({ valid: null, message: "" });
 
-  // Student info from CSV / registrations
+  // Student info from CSV / registrations — NO sensitive data (email/phone not pre-filled from API)
   const [studentInfo, setStudentInfo] = useState<{
     name: string;
-    email: string;
-    phone: string;
+    maskedEmail: string; // display-only hint from API
+    phone: string;       // user-typed
     branch: string;
     section: string;
   } | null>(null);
+
+  // Email the user types to receive OTP — verified server-side against the database
+  const [emailInput, setEmailInput] = useState("");
 
   // Whether this USN is already registered (returning student)
   const [isReturning, setIsReturning] = useState(false);
@@ -178,8 +181,9 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
           message: data.error || "USN not found in the student database.",
         });
         setStudentInfo(null);
-        return;
-      }
+      setEmailInput("");
+      return;
+    }
 
       const s = data.student;
       if (data.returning) {
@@ -191,8 +195,8 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         });
         setStudentInfo({
           name: s.name,
-          email: s.email,
-          phone: s.phone,
+          maskedEmail: s.maskedEmail || "",
+          phone: "",
           branch: s.branch || result.branch || "",
           section: s.section || result.section || "",
         });
@@ -206,8 +210,8 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         });
         setStudentInfo({
           name: s.name,
-          email: s.email,
-          phone: s.phone,
+          maskedEmail: s.maskedEmail || "",
+          phone: "",
           branch: s.branch || result.branch || "",
           section: s.section || result.section || "",
         });
@@ -225,7 +229,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
 
   // Step 2: Send OTP via custom SMTP
   const handleSendOtp = async () => {
-    if (!studentInfo?.email) return;
+    if (!emailInput.trim()) return;
     setIsSendingOtp(true);
     setOtpError("");
 
@@ -233,7 +237,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: studentInfo.email, usn: usn.toUpperCase() }),
+        body: JSON.stringify({ email: emailInput.trim().toLowerCase(), usn: usn.toUpperCase() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send code.");
@@ -249,7 +253,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
 
   // Step 3: Verify OTP
   const handleVerifyOtp = async () => {
-    if (!studentInfo?.email || !otpCode) return;
+    if (!studentInfo || !otpCode || !emailInput.trim()) return;
     setIsVerifyingOtp(true);
     setOtpError("");
 
@@ -257,7 +261,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: studentInfo.email, otp: otpCode, usn: usn.toUpperCase() }),
+        body: JSON.stringify({ email: emailInput.trim().toLowerCase(), otp: otpCode, usn: usn.toUpperCase() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed.");
@@ -327,7 +331,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         setSession({
           usn: upperUSN,
           name: data.name,
-          email: data.email || studentInfo.email,
+          email: data.email || emailInput.trim(),
           branch: data.branch,
           section: data.section,
           eventId: data.eventId || null,
@@ -344,7 +348,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       await setDoc(doc(db, "registrations", upperUSN), {
         name: studentInfo.name.trim(),
         usn: upperUSN,
-        email: studentInfo.email.trim(),
+        email: emailInput.trim(),
         phone: studentInfo.phone.trim(),
         branch,
         section,
@@ -355,7 +359,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       setSession({
         usn: upperUSN,
         name: studentInfo.name.trim(),
-        email: studentInfo.email.trim(),
+        email: emailInput.trim(),
         branch,
         section,
         eventId: null,
@@ -493,14 +497,28 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
               {isReturning ? "Registered Email" : "Email from Student Database"}
             </span>
           </div>
-          <p style={{ fontWeight: 700, color: "var(--ink)", fontSize: "15px", fontFamily: "var(--mono)", marginBottom: "14px" }}>
-            {isReturning ? maskEmail(studentInfo.email) : studentInfo.email}
-          </p>
-          <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6, marginBottom: "14px" }}>
-            {isReturning
-              ? "A 6-digit verification code will be sent to your registered email to restore your session."
-              : "A 6-digit verification code will be sent to this email to verify your identity."}
-          </p>
+          {studentInfo.maskedEmail && (
+            <p style={{ fontWeight: 700, color: "var(--ink)", fontSize: "13px", fontFamily: "var(--mono)", marginBottom: "12px", background: "var(--paper)", border: "1px solid var(--line)", padding: "8px 12px" }}>
+              On file: <span style={{ color: "var(--muted)" }}>{studentInfo.maskedEmail}</span>
+            </p>
+          )}
+          <div style={{ marginBottom: "14px" }}>
+            <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)", marginBottom: "6px" }}>
+              Enter Your Email Address
+            </label>
+            <input
+              type="email"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="your.name@example.com"
+              className="input-field"
+              autoComplete="email"
+              required
+            />
+            <p style={{ fontSize: "11px", color: "var(--muted)", lineHeight: 1.6, marginTop: "6px" }}>
+              Enter the email registered for your USN. A 6-digit code will be sent there.
+            </p>
+          </div>
 
           {otpError && (
             <div style={{ padding: "10px 12px", fontSize: "12px", fontWeight: 600, background: "rgba(232, 52, 26, 0.08)", color: "var(--red)", border: "1.5px solid var(--red)", marginBottom: "12px" }}>
@@ -511,7 +529,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
           <button
             type="button"
             onClick={handleSendOtp}
-            disabled={isSendingOtp || !studentInfo.email}
+            disabled={isSendingOtp || !emailInput.trim()}
             className="btn-primary w-full"
             style={{ padding: "14px" }}
           >
@@ -528,7 +546,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
       {step === "otp" && otpSent && studentInfo && (
         <div className="fade-in-up space-y-4">
           <div style={{ padding: "14px 16px", background: "rgba(16, 185, 129, 0.06)", border: "1.5px solid #10b981", fontSize: "12px", fontWeight: 600, color: "#10b981", lineHeight: 1.6 }}>
-            Verification code sent to {isReturning ? maskEmail(studentInfo.email) : studentInfo.email}
+            Verification code sent to {studentInfo.maskedEmail || emailInput}
           </div>
 
           <div>
@@ -657,7 +675,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
             </label>
             <input
               type="email"
-              value={studentInfo.email}
+              value={emailInput}
               className="input-field"
               disabled
               style={{ opacity: 0.6 }}

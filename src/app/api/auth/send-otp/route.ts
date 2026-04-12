@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
     const usnCheck = validateUSN(cleanUSN);
     if (!usnCheck.valid) {
       return NextResponse.json(
-        { error: usnCheck.error || "Invalid USN." },
+        { error: "Invalid USN or email combination." },
         { status: 400 }
       );
     }
@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
     const storedEmail = (regDoc.exists ? regDoc.data()?.email : studentDoc.exists ? studentDoc.data()?.email : null);
     if (storedEmail && storedEmail.trim().toLowerCase() !== cleanEmail) {
       return NextResponse.json(
-        { error: "Email does not match the USN on record." },
+        { error: "Invalid USN or email combination." },
         { status: 400 }
       );
     }
