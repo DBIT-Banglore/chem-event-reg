@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing payment details" }, { status: 400 });
     }
 
-    // Verify signature
+    // Verify Razorpay signature before touching Firestore
     const expectedSig = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -29,51 +29,68 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getAdminFirestore();
+    const regRef = db.collection("registrations").doc(usn);
+    const eventRef = db.collection("events").doc(eventId);
 
-    // Re-check event capacity before confirming
-    const eventDoc = await db.collection("events").doc(eventId).get();
-    if (!eventDoc.exists) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    const eventData = eventDoc.data()!;
+    const result = await db.runTransaction(async (txn) => {
+      const [regDoc, eventDoc] = await Promise.all([txn.get(regRef), txn.get(eventRef)]);
 
-    const regDoc = await db.collection("registrations").doc(usn).get();
-    if (!regDoc.exists) return NextResponse.json({ error: "Registration not found" }, { status: 404 });
-    const currentEventId = regDoc.data()?.eventId || null;
+      if (!eventDoc.exists) throw Object.assign(new Error("Event not found"), { status: 404 });
+      if (!regDoc.exists) throw Object.assign(new Error("Registration not found"), { status: 404 });
 
-    if (currentEventId !== eventId) {
-      // Only check capacity if switching to a new event
-      if ((eventData.registrationCount || 0) >= eventData.capacity) {
-        return NextResponse.json({ error: "Event is now full. Payment recorded but slot unavailable. Contact admin." }, { status: 409 });
+      const reg = regDoc.data()!;
+      const event = eventDoc.data()!;
+
+      // Idempotency: if this exact payment was already recorded, return success without re-processing
+      if (reg.paymentId === razorpay_payment_id && reg.paymentStatus === "paid") {
+        return { alreadyProcessed: true, paymentId: razorpay_payment_id, eventId: reg.eventId };
       }
-    }
 
-    // Atomic batch: confirm slot + save payment info
-    const batch = db.batch();
+      // Also guard against replaying a different payment for the same order
+      if (reg.orderId === razorpay_order_id && reg.paymentStatus === "paid") {
+        return { alreadyProcessed: true, paymentId: reg.paymentId, eventId: reg.eventId };
+      }
 
-    batch.update(db.collection("registrations").doc(usn), {
-      eventId,
-      paymentId: razorpay_payment_id,
-      paymentStatus: "paid",
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+      const currentEventId = reg.eventId || null;
+      const isNewEvent = currentEventId !== eventId;
 
-    if (currentEventId !== eventId) {
-      batch.update(db.collection("events").doc(eventId), {
-        registrationCount: FieldValue.increment(1),
+      // Capacity check (only when switching to a new event)
+      if (isNewEvent && (event.registrationCount || 0) >= event.capacity) {
+        throw Object.assign(
+          new Error("Event is now full. Payment recorded but slot unavailable. Contact admin."),
+          { status: 409 }
+        );
+      }
+
+      // Confirm slot + record payment
+      txn.update(regRef, {
+        eventId,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        paymentStatus: "paid",
         updatedAt: FieldValue.serverTimestamp(),
       });
-      if (currentEventId) {
-        batch.update(db.collection("events").doc(currentEventId), {
-          registrationCount: FieldValue.increment(-1),
+
+      if (isNewEvent) {
+        txn.update(eventRef, {
+          registrationCount: FieldValue.increment(1),
           updatedAt: FieldValue.serverTimestamp(),
         });
+        if (currentEventId) {
+          txn.update(db.collection("events").doc(currentEventId), {
+            registrationCount: FieldValue.increment(-1),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
       }
-    }
 
-    await batch.commit();
+      return { alreadyProcessed: false, paymentId: razorpay_payment_id, eventId };
+    });
 
-    return NextResponse.json({ success: true, paymentId: razorpay_payment_id, eventId });
+    return NextResponse.json({ success: true, paymentId: result.paymentId, eventId: result.eventId });
   } catch (err) {
     console.error("[payment/verify]", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    const status = (err as { status?: number }).status ?? 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status });
   }
 }

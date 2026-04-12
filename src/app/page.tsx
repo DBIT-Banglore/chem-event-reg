@@ -285,7 +285,9 @@ export default function Home() {
       {/* FOOTER */}
       <footer>
         <span className="footer-brand">© 2026 Chem Event Reg — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
-        <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>Built by Dept. of CSE, Section B — DBIT</span>
+        <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>
+          Built by Dept. of CSE, Section B — DBIT &nbsp;·&nbsp; Dev: <strong>Lekhan</strong> &amp; <strong>Mithun Gowda B</strong>
+        </span>
         <div className="footer-links">
           <Link href="/register">Register</Link>
           <Link href="/status">Status</Link>

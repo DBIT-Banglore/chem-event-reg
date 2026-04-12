@@ -44,10 +44,21 @@ export async function POST(req: NextRequest) {
           : `${local[0]}${"*".repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
       }
 
+      // Fetch event name if eventId is present
+      const eventId = data.eventId || null;
+      let eventName: string | null = null;
+      if (eventId) {
+        const eventDoc = await adminDb.collection("events").doc(eventId).get();
+        if (eventDoc.exists) eventName = eventDoc.data()?.name || null;
+      }
+
       return NextResponse.json({
         found: true,
         returning: true,
+        eventId,
+        eventName,
         student: {
+          usn: cleanUSN,
           name: data.name || "",
           email: data.email || "",
           maskedEmail,

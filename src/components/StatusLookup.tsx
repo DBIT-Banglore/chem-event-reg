@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { validateUSN } from "@/lib/usnValidator";
 import { Search, CalendarDays, CheckCircle2, User } from "lucide-react";
 
@@ -16,46 +14,52 @@ export default function StatusLookup() {
         branch: string;
         section: string;
         email: string;
-        eventId: string | null;
     } | null>(null);
+    const [eventId, setEventId] = useState<string | null>(null);
     const [eventName, setEventName] = useState<string | null>(null);
 
     const handleLookup = async () => {
         const upperUSN = usn.trim().toUpperCase();
         const validation = validateUSN(upperUSN);
         if (!validation.valid) {
-            setError("Invalid USN format.");
+            setError(validation.error || "Invalid USN format.");
             return;
         }
 
         setIsLoading(true);
         setError("");
         setStudentData(null);
+        setEventId(null);
         setEventName(null);
 
         try {
-            const regDoc = await getDoc(doc(db, "registrations", upperUSN));
-            if (!regDoc.exists()) {
+            const res = await fetch("/api/auth/lookup-usn", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ usn: upperUSN }),
+            });
+
+            const json = await res.json();
+
+            if (!res.ok || !json.found) {
+                setError(json.error || "No registration found for this USN.");
+                return;
+            }
+
+            if (!json.returning) {
                 setError("No registration found for this USN.");
                 return;
             }
-            const d = regDoc.data();
-            const data = {
-                name: d.name,
-                usn: d.usn,
-                branch: d.branch,
-                section: d.section,
-                email: d.email || "",
-                eventId: d.eventId || null,
-            };
-            setStudentData(data);
 
-            if (data.eventId) {
-                const evDoc = await getDoc(doc(db, "events", data.eventId));
-                if (evDoc.exists()) {
-                    setEventName(evDoc.data().name);
-                }
-            }
+            setStudentData({
+                name: json.student.name,
+                usn: json.student.usn || upperUSN,
+                branch: json.student.branch,
+                section: json.student.section,
+                email: json.student.email || "",
+            });
+            setEventId(json.eventId || null);
+            setEventName(json.eventName || null);
         } catch (err) {
             setError("Failed to fetch data. Please try again.");
             console.error(err);
@@ -112,10 +116,10 @@ export default function StatusLookup() {
                             <CalendarDays style={{ width: 16, height: 16, color: "var(--red)" }} />
                             <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>Event</span>
                         </div>
-                        {studentData.eventId ? (
+                        {eventId ? (
                             <div>
-                                <p style={{ fontWeight: 700, fontSize: "15px", color: "var(--ink)", marginBottom: "4px" }}>{eventName || studentData.eventId}</p>
-                                <p style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--muted)" }}>{studentData.eventId}</p>
+                                <p style={{ fontWeight: 700, fontSize: "15px", color: "var(--ink)", marginBottom: "4px" }}>{eventName || eventId}</p>
+                                <p style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--muted)" }}>{eventId}</p>
                             </div>
                         ) : (
                             <p style={{ fontSize: "13px", color: "var(--muted)" }}>No event selected yet.</p>

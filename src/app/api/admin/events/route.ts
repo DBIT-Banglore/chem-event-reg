@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 import { FieldValue } from "firebase-admin/firestore";
 
 // GET — list all events
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const { idToken, name, description, capacity, dateTime, isActive, price } = await req.json();
     if (!idToken) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
 
     if (!name?.trim()) return NextResponse.json({ error: "Event name is required" }, { status: 400 });
     if (!capacity || capacity < 1) return NextResponse.json({ error: "Capacity must be at least 1" }, { status: 400 });
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, eventId });
   } catch (err) {
     console.error("[POST /api/admin/events]", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: adminErrStatus(err) });
   }
 }
 
@@ -51,7 +52,7 @@ export async function PUT(req: NextRequest) {
   try {
     const { idToken, eventId, ...updates } = await req.json();
     if (!idToken) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
     if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 });
 
     const db = getAdminFirestore();
@@ -68,7 +69,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[PUT /api/admin/events]", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: adminErrStatus(err) });
   }
 }
 
@@ -77,7 +78,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const { idToken, eventId } = await req.json();
     if (!idToken) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
     if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 });
 
     const db = getAdminFirestore();
@@ -90,6 +91,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[DELETE /api/admin/events]", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: adminErrStatus(err) });
   }
 }

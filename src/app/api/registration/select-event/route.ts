@@ -23,55 +23,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Registrations are currently closed." }, { status: 403 });
     }
 
-    // Get event
-    const eventDoc = await db.collection("events").doc(eventId).get();
-    if (!eventDoc.exists) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    const eventData = eventDoc.data()!;
-    if (!eventData.isActive) return NextResponse.json({ error: "This event is not available." }, { status: 400 });
+    const eventRef = db.collection("events").doc(eventId);
+    const regRef = db.collection("registrations").doc(usn);
 
-    // Get current registration
-    const regDoc = await db.collection("registrations").doc(usn).get();
-    if (!regDoc.exists) return NextResponse.json({ error: "Registration not found." }, { status: 404 });
-    const currentEventId = regDoc.data()?.eventId || null;
+    const result = await db.runTransaction(async (txn) => {
+      const [eventDoc, regDoc] = await Promise.all([txn.get(eventRef), txn.get(regRef)]);
 
-    // If same event, no-op
-    if (currentEventId === eventId) {
-      return NextResponse.json({ success: true, eventId });
-    }
+      if (!eventDoc.exists) throw Object.assign(new Error("Event not found"), { status: 404 });
+      const eventData = eventDoc.data()!;
+      if (!eventData.isActive) throw Object.assign(new Error("This event is not available."), { status: 400 });
 
-    // Check capacity (current count < capacity)
-    const currentCount = eventData.registrationCount || 0;
-    if (currentCount >= eventData.capacity) {
-      return NextResponse.json({ error: "This event is full. Please choose another." }, { status: 409 });
-    }
+      if (!regDoc.exists) throw Object.assign(new Error("Registration not found."), { status: 404 });
+      const currentEventId = regDoc.data()?.eventId || null;
 
-    // Atomic update: decrement old, increment new, update registration
-    const batch = db.batch();
+      // No-op if already on the same event
+      if (currentEventId === eventId) return { eventId };
 
-    // Update registration
-    batch.update(db.collection("registrations").doc(usn), {
-      eventId,
-      updatedAt: FieldValue.serverTimestamp(),
+      // Capacity check inside the transaction — prevents race conditions
+      if ((eventData.registrationCount || 0) >= eventData.capacity) {
+        throw Object.assign(new Error("This event is full. Please choose another."), { status: 409 });
+      }
+
+      txn.update(regRef, { eventId, updatedAt: FieldValue.serverTimestamp() });
+      txn.update(eventRef, { registrationCount: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+
+      if (currentEventId) {
+        txn.update(db.collection("events").doc(currentEventId), {
+          registrationCount: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      return { eventId };
     });
 
-    // Increment new event count
-    batch.update(db.collection("events").doc(eventId), {
-      registrationCount: FieldValue.increment(1),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    // Decrement old event count if there was one
-    if (currentEventId) {
-      batch.update(db.collection("events").doc(currentEventId), {
-        registrationCount: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    await batch.commit();
-    return NextResponse.json({ success: true, eventId });
+    return NextResponse.json({ success: true, eventId: result.eventId });
   } catch (err) {
     console.error("select-event error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    const status = (err as { status?: number }).status ?? 500;
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status });
   }
 }
