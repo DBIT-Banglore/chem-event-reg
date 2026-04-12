@@ -46,7 +46,7 @@ async function sendWithBrevo(
         "api-key": cred.apiKey,
       },
       body: JSON.stringify({
-        sender: { name: "Idea Lab — DBIT", email: cred.senderEmail },
+        sender: { name: "Event Registration — DBIT", email: cred.senderEmail },
         to: [{ email: toEmail }],
         subject,
         htmlContent: html,

@@ -45,7 +45,7 @@ function buildEmailHtml(otp: string): string {
           <td style="background:#0D0D0D;padding:16px 32px;border-bottom:1.5px solid #0D0D0D;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#9788; IDEA LAB</td>
+                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#128197; EVENT REGISTRATION</td>
                 <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;color:#7A7670;text-transform:uppercase;letter-spacing:2px;">DBIT</td>
               </tr>
             </table>
@@ -67,7 +67,7 @@ function buildEmailHtml(otp: string): string {
             <!-- Heading -->
             <p style="margin:0 0 20px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:32px;font-weight:700;color:#0D0D0D;letter-spacing:0.01em;line-height:1.1;">Confirm Your Identity</p>
             <!-- Description -->
-            <p style="margin:0 0 28px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:400;color:#0D0D0D;line-height:1.6;">Enter the code below to verify your student email on Idea Lab.</p>
+            <p style="margin:0 0 28px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:400;color:#0D0D0D;line-height:1.6;">Enter the code below to verify your student email for the Chemistry Department event registration.</p>
 
             <!-- Divider -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
     // Issue #10: Use shared Brevo utility
     await sendEmail(
       cleanEmail,
-      `${otp} is your Idea Lab verification code`,
+      `${otp} is your Event Registration verification code`,
       buildEmailHtml(otp)
     );
 
