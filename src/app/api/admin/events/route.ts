@@ -4,14 +4,18 @@ import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 import { FieldValue } from "firebase-admin/firestore";
 
 // GET — list all events
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const idToken = req.headers.get("x-admin-token") || "";
+    if (!idToken) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    await requireAdmin(idToken);
+
     const db = getAdminFirestore();
     const snap = await db.collection("events").orderBy("createdAt", "desc").get();
     const events = snap.docs.map((d) => ({ eventId: d.id, ...d.data() }));
     return NextResponse.json({ events });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: adminErrStatus(err) });
   }
 }
 

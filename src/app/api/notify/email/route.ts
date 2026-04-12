@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getSessionFromRequest } from "@/lib/jwt";
 
 // ── Brevo multi-key round-robin with fallback (separate counter from OTP) ──
 
@@ -399,6 +400,12 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
 
 export async function POST(req: NextRequest) {
   try {
+    // Require authenticated session
+    const session = await getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { type, toUSN, fromName, teamName, teamId, inviteId } = await req.json();
 
     if (!type || !toUSN || !fromName || !teamName || !teamId) {

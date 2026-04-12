@@ -90,7 +90,11 @@ export default function AdminPage() {
     const fetchEvents = useCallback(async () => {
         setEventsLoading(true);
         try {
-            const res = await fetch("/api/admin/events");
+            const currentUser = auth.currentUser;
+            const idToken = currentUser ? await currentUser.getIdToken(true) : "";
+            const res = await fetch("/api/admin/events", {
+                headers: { "x-admin-token": idToken },
+            });
             const data = await res.json();
             setEvents(data.events || []);
         } catch {
