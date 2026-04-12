@@ -34,6 +34,8 @@ export async function signSessionJWT(payload: {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
+    .setIssuer("chemnova-2026")
+    .setAudience("chemnova-student")
     .sign(getSecret());
 }
 
@@ -41,7 +43,10 @@ export async function verifySessionJWT(
   token: string
 ): Promise<SessionJWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecret());
+    const { payload } = await jwtVerify(token, getSecret(), {
+      issuer: "chemnova-2026",
+      audience: "chemnova-student",
+    });
     return payload as SessionJWTPayload;
   } catch {
     return null;
@@ -51,9 +56,15 @@ export async function verifySessionJWT(
 export async function getSessionFromRequest(req: import("next/server").NextRequest): Promise<Record<string, unknown> | null> {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
+  const jwtSecret = process.env.JWT_SECRET;
+  // Never fall back to an empty secret — empty secret lets anyone forge tokens
+  if (!jwtSecret) return null;
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "");
-    const { payload } = await jwtVerify(token, secret);
+    const secret = new TextEncoder().encode(jwtSecret);
+    const { payload } = await jwtVerify(token, secret, {
+      issuer: "chemnova-2026",
+      audience: "chemnova-student",
+    });
     return payload as Record<string, unknown>;
   } catch {
     return null;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getSessionFromRequest } from "@/lib/jwt";
+import { rateLimit } from "@/lib/rate-limit";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -16,7 +17,26 @@ export async function POST(req: NextRequest) {
     }
     const usn = payload.usn as string;
 
-    const { eventId, eventId2, slot = 1 } = await req.json();
+    // Rate limit: 10 order creation attempts per hour per user
+    const rl = rateLimit(usn, "payment-create", 10, 60 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many payment attempts. Try again later." }, { status: 429 });
+    }
+
+    const body = await req.json();
+    const { eventId, eventId2 } = body;
+
+    // Validate slot strictly
+    const rawSlot = body.slot;
+    let slot: 1 | 2 = 1;
+    if (rawSlot !== undefined && rawSlot !== null) {
+      if (rawSlot === 2 || rawSlot === "2") {
+        slot = 2;
+      } else if (rawSlot !== 1 && rawSlot !== "1") {
+        return NextResponse.json({ error: "slot must be 1 or 2" }, { status: 400 });
+      }
+    }
+
     if (!eventId) return NextResponse.json({ error: "eventId required" }, { status: 400 });
 
     const db = getAdminFirestore();

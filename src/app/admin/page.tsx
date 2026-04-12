@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { db, auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query } from "firebase/firestore";
 import StudentTable from "@/components/StudentTable";
 import CSVUploader from "@/components/CSVUploader";
 import CSVStudentTable, { CSVStudent } from "@/components/CSVStudentTable";
@@ -107,70 +107,24 @@ export default function AdminPage() {
     const fetchStudents = useCallback(async () => {
         setDataLoading(true);
         try {
-            // Fetch CSV students
-            const studentsSnap = await getDocs(collection(db, "students"));
-            setCsvStudentCount(studentsSnap.size);
-            const csvData: CSVStudent[] = [];
-            studentsSnap.forEach((d) => {
-                const data = d.data();
-                csvData.push({
-                    usn: data.usn || d.id,
-                    name: data.name || "",
-                    email: data.email || "",
-                    phone: data.phone || "",
-                    branch: data.branch || "",
-                    section: data.section || "",
-                });
+            const currentUser = auth.currentUser;
+            const idToken = currentUser ? await currentUser.getIdToken(true) : "";
+            const res = await fetch("/api/admin/students", {
+                headers: { "x-admin-token": idToken },
             });
-            setCsvStudents(csvData);
+            if (!res.ok) throw new Error("Failed to fetch data");
+            const result = await res.json();
 
-            const q = query(collection(db, "registrations"), orderBy("registeredAt", "desc"));
-            const snapshot = await getDocs(q);
-            const data: Student[] = [];
-            snapshot.forEach((docSnap) => {
-                const d = docSnap.data();
-                data.push({
-                    name: d.name, usn: d.usn, phone: d.phone, email: d.email || "",
-                    branch: d.branch, section: d.section,
-                    eventId: d.eventId || null,
-                    paymentStatus: d.paymentStatus || null,
-                    paymentId: d.paymentId || null,
-                    paymentAmount: d.paymentAmount ?? null,
-                    eventId2: d.eventId2 || null,
-                    paymentStatus2: d.paymentStatus2 || null,
-                    paymentId2: d.paymentId2 || null,
-                    paymentAmount2: d.paymentAmount2 ?? null,
-                });
-            });
-            setStudents(data);
+            // CSV students
+            setCsvStudentCount(result.students.length);
+            setCsvStudents(result.students);
+
+            // Registrations
+            setStudents(result.registrations);
             await fetchConfig();
             await fetchEvents();
-        } catch {
-            try {
-                const q2 = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
-                const snapshot = await getDocs(q2);
-                const data: Student[] = [];
-                snapshot.forEach((docSnap) => {
-                    const d = docSnap.data();
-                    data.push({
-                        name: d.name, usn: d.usn, phone: d.phone, email: d.email || "",
-                        branch: d.branch, section: d.section,
-                        eventId: d.eventId || null,
-                        paymentStatus: d.paymentStatus || null,
-                        paymentId: d.paymentId || null,
-                        paymentAmount: d.paymentAmount ?? null,
-                        eventId2: d.eventId2 || null,
-                        paymentStatus2: d.paymentStatus2 || null,
-                        paymentId2: d.paymentId2 || null,
-                        paymentAmount2: d.paymentAmount2 ?? null,
-                    });
-                });
-                setStudents(data);
-                await fetchConfig();
-                await fetchEvents();
-            } catch (error2) {
-                console.error("Error fetching data:", error2);
-            }
+        } catch (error2) {
+            console.error("Error fetching data:", error2);
         } finally {
             setDataLoading(false);
         }

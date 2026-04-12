@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
 /**
  * POST /api/admin/reset-database
@@ -30,6 +31,13 @@ export async function POST(req: NextRequest) {
         { error: err instanceof Error ? err.message : "Unauthorized" },
         { status: adminErrStatus(err) }
       );
+    }
+
+    // Rate limit: 3 resets per hour per IP (destructive operation)
+    const ip = getClientIP(req);
+    const rl = rateLimit(ip, "admin-reset", 3, 60 * 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many reset attempts. Try again later." }, { status: 429 });
     }
 
     let adminDb;

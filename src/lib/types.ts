@@ -58,7 +58,7 @@ export interface Config {
 export interface SessionData {
   usn: string;
   name: string;
-  email: string;
+  // email intentionally excluded — not stored in localStorage to reduce XSS exposure
   branch: string;
   section: string;
   eventId: string | null;
