@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 
 export async function PUT(req: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
 
     const adminDb = getAdminFirestore();
     await adminDb.collection("students").doc(usn).update(data);
@@ -18,7 +19,7 @@ export async function PUT(req: NextRequest) {
     console.error("Student update error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Update failed" },
-      { status: 500 }
+      { status: adminErrStatus(err) }
     );
   }
 }
@@ -30,7 +31,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
 
     const adminDb = getAdminFirestore();
     await adminDb.collection("students").doc(usn).delete();
@@ -40,7 +41,7 @@ export async function DELETE(req: NextRequest) {
     console.error("Student delete error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Delete failed" },
-      { status: 500 }
+      { status: adminErrStatus(err) }
     );
   }
 }

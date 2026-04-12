@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 
 /**
  * POST /api/admin/reset-database
@@ -22,22 +23,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Verify the Firebase ID token
-    let adminAuth;
     try {
-      adminAuth = getAdminAuth();
+      await requireAdmin(idToken);
     } catch (err) {
-      console.error("Failed to initialize Firebase Admin Auth:", err);
-      return NextResponse.json({ error: "Server configuration error: Firebase Admin not initialized. Check FIREBASE_SERVICE_ACCOUNT_KEY env var." }, { status: 500 });
-    }
-
-    let decoded;
-    try {
-      decoded = await adminAuth.verifyIdToken(idToken);
-      if (!decoded.uid) throw new Error("No UID in token");
-    } catch (err) {
-      console.error("ID token verification failed:", err);
-      return NextResponse.json({ error: "Token verification failed. Try logging out and back in." }, { status: 401 });
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Unauthorized" },
+        { status: adminErrStatus(err) }
+      );
     }
 
     let adminDb;

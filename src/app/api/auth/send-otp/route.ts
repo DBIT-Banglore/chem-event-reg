@@ -97,102 +97,151 @@ async function sendEmailWithFallback(
   throw new Error("All Brevo API keys exhausted. Could not send email.");
 }
 
-// ── Email template ────────────────────────────────────────────────────────
+// ── OTP email template — dark brand system matching site ──────────────────
 
-function buildEmailHtml(otp: string): string {
+function buildEmailHtml(otp: string, baseUrl: string): string {
   const digits = otp.split("");
   const digitCells = digits
     .map(
       (d, i) =>
-        `<td style="width:44px;height:52px;text-align:center;vertical-align:middle;font-size:26px;font-weight:800;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;color:#0D0D0D;background:#E8E4DD;border:1.5px solid #0D0D0D;${i < 5 ? "border-right:none;" : ""}">${d}</td>`
+        `<td style="width:48px;height:56px;border:1px solid #4a4a4a;text-align:center;vertical-align:middle;font-size:28px;font-weight:700;color:#ffffff;font-family:Arial,Helvetica,sans-serif;${i > 0 ? "padding-left:8px;" : ""}">${d}</td>` +
+        (i < 5 ? `<td style="width:8px;"></td>` : "")
     )
     .join("");
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chem Event Verification Code</title>
+  <style>
+    @media only screen and (max-width:600px){
+      .email-card{width:100%!important}
+      .email-body{padding:28px 20px 20px 20px!important}
+      .email-hdr{padding:18px 20px!important}
+      .email-ftr{padding:20px!important}
+      .otp-cell{width:40px!important;height:48px!important;font-size:24px!important}
+      .hero-title{font-size:28px!important}
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#E8E4DD;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E8E4DD;padding:40px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="500" cellpadding="0" cellspacing="0" style="max-width:500px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0a0a0a;margin:0;padding:0;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table class="email-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background:#171717;border:1px solid #2e2e2e;">
 
-        <!-- Header: matches Navbar -->
-        <tr>
-          <td style="background:#0D0D0D;padding:16px 32px;border-bottom:1.5px solid #0D0D0D;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;font-weight:700;color:#F2EFE9;letter-spacing:0.01em;">&#9788; IDEA LAB</td>
-                <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;color:#7A7670;text-transform:uppercase;letter-spacing:2px;">DBIT</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+          <!-- Header -->
+          <tr>
+            <td class="email-hdr" style="background:#050505;padding:22px 32px;border-bottom:1px solid #2e2e2e;">
+              <table width="100%" role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="font-size:18px;line-height:1.2;font-weight:700;color:#ffffff;letter-spacing:0.5px;font-family:Arial,Helvetica,sans-serif;">
+                    ChemNova 2026
+                  </td>
+                  <td align="right" style="font-size:11px;color:#8f8f8f;letter-spacing:3px;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">
+                    DBIT
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <!-- Ticker-style accent bar -->
-        <tr>
-          <td style="background:#E8341A;padding:8px 32px;">
-            <p style="margin:0;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;color:#F2EFE9;text-transform:uppercase;letter-spacing:3px;text-align:center;">Email Verification &bull; Secure Access &bull; One-Time Code</p>
-          </td>
-        </tr>
+          <!-- Red accent strip -->
+          <tr>
+            <td style="background:#ef2b14;padding:12px 32px;text-align:center;color:#ffffff;font-size:10px;letter-spacing:4px;text-transform:uppercase;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+              Chemistry Department &bull; Secure Access &bull; One-Time Code
+            </td>
+          </tr>
 
-        <!-- Body -->
-        <tr>
-          <td style="padding:40px 32px 32px;">
-            <!-- Section label -->
-            <p style="margin:0 0 4px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#7A7670;">Verification Code</p>
-            <!-- Heading -->
-            <p style="margin:0 0 20px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:32px;font-weight:700;color:#0D0D0D;letter-spacing:0.01em;line-height:1.1;">Confirm Your Identity</p>
-            <!-- Description -->
-            <p style="margin:0 0 28px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:400;color:#0D0D0D;line-height:1.6;">Enter the code below to verify your student email on Idea Lab.</p>
+          <!-- Hero -->
+          <tr>
+            <td class="email-body" style="padding:40px 40px 20px 40px;">
+              <div style="font-size:11px;color:#a1a1a1;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">
+                Verification Code
+              </div>
+              <div class="hero-title" style="font-size:36px;line-height:1.15;font-weight:700;color:#ffffff;margin-bottom:16px;font-family:Arial,Helvetica,sans-serif;">
+                Confirm Your Registration
+              </div>
+              <div style="font-size:15px;line-height:1.7;color:#d2d2d2;font-family:Arial,Helvetica,sans-serif;">
+                Enter the code below to verify your student email and continue your
+                registration for <strong style="color:#ffffff;">Chem Event Reg</strong>.
+              </div>
+            </td>
+          </tr>
 
-            <!-- Divider -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-              <tr><td style="border-top:1.5px solid rgba(13,13,13,0.12);font-size:0;line-height:0;">&nbsp;</td></tr>
-            </table>
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 40px;">
+              <div style="height:1px;background:#2b2b2b;"></div>
+            </td>
+          </tr>
 
-            <!-- OTP digit boxes -->
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;">
-              <tr>${digitCells}</tr>
-            </table>
+          <!-- OTP digit boxes -->
+          <tr>
+            <td style="padding:32px 40px 16px 40px;" align="center">
+              <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;text-align:center;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="display:inline-table;margin:0 auto;">
+                  <tr>${digitCells}</tr>
+                </table>
+              </div>
+              <div style="margin-top:16px;font-size:13px;color:#9a9a9a;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                Click to autofill:&nbsp;
+                <a href="${baseUrl}/register?otp=${otp}" style="color:#ffffff;letter-spacing:8px;font-weight:700;font-family:Arial,Helvetica,sans-serif;text-decoration:none;background:#2a2a2a;padding:4px 8px;border:1px solid #4a4a4a;">${otp}</a>
+              </div>
+            </td>
+          </tr>
 
-            <!-- Copyable OTP -->
-            <p style="margin:0 0 28px;text-align:center;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:11px;color:#7A7670;">Tap to copy: <span style="font-family:'Courier New',monospace;font-size:18px;font-weight:700;color:#0D0D0D;letter-spacing:6px;user-select:all;-webkit-user-select:all;">${otp}</span></p>
+          <!-- Expiry -->
+          <tr>
+            <td style="padding:20px 40px 0 40px;">
+              <div style="border:1px solid #ef2b14;color:#ef2b14;padding:16px 20px;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                &#9888; This code expires in 10 minutes
+              </div>
+            </td>
+          </tr>
 
-            <!-- Divider -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-              <tr><td style="border-top:1.5px solid rgba(13,13,13,0.12);font-size:0;line-height:0;">&nbsp;</td></tr>
-            </table>
+          <!-- Primary CTA -->
+          <tr>
+            <td align="center" style="padding:28px 40px 8px 40px;">
+              <a href="${baseUrl}/register"
+                 style="display:inline-block;background:#ef2b14;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;">
+                Enter Verification Code
+              </a>
+            </td>
+          </tr>
 
-            <!-- Expiry warning (matches app's red accent pattern) -->
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-              <tr>
-                <td style="padding:12px 16px;background:#F2EFE9;border:1.5px solid #E8341A;border-left:4px solid #E8341A;">
-                  <p style="margin:0;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:600;color:#E8341A;text-transform:uppercase;letter-spacing:0.5px;">&#9888; This code expires in 10 minutes</p>
-                </td>
-              </tr>
-            </table>
+          <!-- Secondary CTA -->
+          <tr>
+            <td align="center" style="padding:6px 40px 28px 40px;">
+              <a href="${baseUrl}"
+                 style="display:inline-block;color:#bdbdbd;text-decoration:none;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">
+                Visit Website
+              </a>
+            </td>
+          </tr>
 
-            <!-- Ignore notice -->
-            <p style="margin:0;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:12px;color:#7A7670;line-height:1.7;">If you didn't request this code, you can safely ignore this email.</p>
-          </td>
-        </tr>
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 40px;">
+              <div style="height:1px;background:#2b2b2b;"></div>
+            </td>
+          </tr>
 
-        <!-- Footer: matches app footer style -->
-        <tr>
-          <td style="padding:20px 32px;border-top:1.5px solid rgba(13,13,13,0.12);background:#F2EFE9;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:11px;color:#7A7670;line-height:1.6;">Don Bosco Institute of Technology<br>Kumbalagodu, Bangalore</td>
-                <td align="right" valign="bottom" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;color:#aaa;">Automated message<br>Do not reply</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+          <!-- Footer -->
+          <tr>
+            <td class="email-ftr" style="padding:24px 40px 32px 40px;font-size:13px;line-height:1.8;color:#9a9a9a;font-family:Arial,Helvetica,sans-serif;">
+              If you didn't request this code, you can safely ignore this email.<br><br>
+              <span style="color:#ffffff;">Chem Event Reg — Chemistry Department</span><br>
+              Don Bosco Institute of Technology, Bangalore<br>
+              Built by Mithun Gowda B &amp; Lekhan HR — Dept. of CSE, DBIT
+            </td>
+          </tr>
 
-      </table>
-    </td></tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
@@ -282,10 +331,11 @@ export async function POST(req: NextRequest) {
     });
 
     // Send email with round-robin + fallback
+    const baseUrl = req.nextUrl.origin;
     await sendEmailWithFallback(
       cleanEmail,
-      `${otp} is your Idea Lab verification code`,
-      buildEmailHtml(otp)
+      `${otp} is your ChemNova 2026 verification code`,
+      buildEmailHtml(otp, baseUrl)
     );
 
     return NextResponse.json({ success: true });

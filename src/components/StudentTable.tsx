@@ -12,6 +12,14 @@ interface Student {
     email?: string;
     eventId?: string | null;
     eventName?: string | null;
+    paymentStatus?: string | null;
+    paymentId?: string | null;
+    paymentAmount?: number | null;
+    eventId2?: string | null;
+    eventName2?: string | null;
+    paymentStatus2?: string | null;
+    paymentId2?: string | null;
+    paymentAmount2?: number | null;
 }
 
 interface StudentTableProps {
@@ -34,6 +42,9 @@ const tdStyle: React.CSSProperties = {
     padding: "16px",
     fontSize: "13px",
 };
+
+const fmtAmt = (v: number | null | undefined): string =>
+    v == null || v === 0 ? "₹0 (Free)" : `₹${v.toLocaleString("en-IN")}`;
 
 export default function StudentTable({ students, showEventColumn = true }: StudentTableProps) {
     const [searchQuery, setSearchQuery] = useState("");
@@ -66,41 +77,54 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
     };
 
     const exportCSV = () => {
-        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Event ID"];
-        const rows = students.map((s) => [
-            s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
-            s.eventName || "", s.eventId || "",
+        const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section",
+            "Event 1", "Payment Status", "Transaction ID (Event 1)", "Amount Paid — Event 1",
+            "Event 2", "Payment Status (Event 2)", "Transaction ID (Event 2)", "Amount Paid — Event 2",
+            "Total Amount Paid"];
+
+        const rows = students.map((s, i) => [
+            i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
+            s.eventName || "", s.paymentStatus || "Free", s.paymentId || "", fmtAmt(s.paymentAmount),
+            s.eventName2 || "", s.paymentStatus2 || (s.eventId2 ? "Free" : ""), s.paymentId2 || "", fmtAmt(s.paymentAmount2),
+            fmtAmt((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)),
         ]);
 
         const csvContent = [
-            headers.join(","),
-            ...rows.map((row) =>
-                row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-            ),
+            headers.map(h => `"${h}"`).join(","),
+            ...rows.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")),
         ].join("\n");
 
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `registrations-${new Date().toISOString().split("T")[0]}.csv`;
+        link.download = `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     };
 
     const exportXLS = async () => {
         try {
-            const { exportSingleSheet } = await import("@/lib/xlsExport");
-            const rows = students.map(s => ({
-                Name: s.name,
-                USN: s.usn,
-                Email: s.email || "",
-                Phone: s.phone,
-                Branch: s.branch,
-                Section: s.section,
-                "Event Name": s.eventName || "",
-                "Event ID": s.eventId || "",
+            const { exportToXLS } = await import("@/lib/xlsExport");
+            const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid"];
+            const rows = students.map((s, i) => ({
+                "#": i + 1,
+                "Name": s.name,
+                "USN": s.usn,
+                "Email": s.email || "",
+                "Phone": s.phone,
+                "Branch": s.branch,
+                "Section": s.section,
+                "Event 1": s.eventName || "",
+                "Payment Status": s.paymentStatus || "Free",
+                "Transaction ID (Event 1)": s.paymentId || "",
+                "Amount Paid — Event 1": s.paymentAmount ?? "",
+                "Event 2": s.eventName2 || "",
+                "Payment Status (Event 2)": s.paymentStatus2 || (s.eventId2 ? "Free" : ""),
+                "Transaction ID (Event 2)": s.paymentId2 || "",
+                "Amount Paid — Event 2": s.paymentAmount2 ?? "",
+                "Total Amount Paid": ((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)) || "",
             }));
-            exportSingleSheet(rows, `registrations-${new Date().toISOString().split("T")[0]}.xlsx`, "Registrations");
+            await exportToXLS([rows], ["All Registrations"], `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
         } catch {
             exportCSV();
         }

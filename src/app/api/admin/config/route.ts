@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
 
     const adminDb = getAdminFirestore();
     await adminDb.collection("config").doc("global_config").set(updates, { merge: true });
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     console.error("Config update error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Update failed" },
-      { status: 500 }
+      { status: adminErrStatus(err) }
     );
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    await getAdminAuth().verifyIdToken(idToken);
+    await requireAdmin(idToken);
 
     const adminDb = getAdminFirestore();
     const batchId = `batch_${Date.now()}`;
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     console.error("CSV upload error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Upload failed" },
-      { status: 500 }
+      { status: adminErrStatus(err) }
     );
   }
 }
