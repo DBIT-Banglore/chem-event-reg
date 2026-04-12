@@ -286,6 +286,9 @@ export default function Home() {
       <footer>
         <span className="footer-brand">© 2026 Chem Event Reg — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
         <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>Built by Dept. of CSE, Section B — DBIT</span>
+        <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)", opacity: 0.7 }}>
+          Made by B Section CSE Students: Harsha N, Mithun Gowda B, Naren V, Nevil Anson Dsouza, Lekhan H R &amp; Manasvi R
+        </span>
         <div className="footer-links">
           <Link href="/register">Register</Link>
           <Link href="/status">Status</Link>
