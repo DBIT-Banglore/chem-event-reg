@@ -185,10 +185,19 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                                 <td style={{ ...tdStyle, color: "var(--muted)" }} className="admin-hide-mobile">{student.section}</td>
                                 {showEventColumn && (
                                     <td style={{ ...tdStyle, fontSize: "12px" }} className="admin-hide-tablet">
-                                        {student.eventName ? (
-                                            <span className="badge badge-success">{student.eventName}</span>
-                                        ) : student.eventId ? (
-                                            <span className="badge badge-success">{student.eventId}</span>
+                                        {(student.eventName || student.eventId || student.eventName2 || student.eventId2) ? (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                                {(student.eventName || student.eventId) && (
+                                                    <span className="badge badge-success">
+                                                        {student.eventName || student.eventId}
+                                                    </span>
+                                                )}
+                                                {(student.eventName2 || student.eventId2) && (
+                                                    <span className="badge badge-success">
+                                                        {student.eventName2 || student.eventId2}
+                                                    </span>
+                                                )}
+                                            </div>
                                         ) : (
                                             <span style={{ color: "var(--muted)" }}>—</span>
                                         )}

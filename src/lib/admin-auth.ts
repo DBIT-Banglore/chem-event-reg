@@ -22,7 +22,7 @@ export async function requireAdmin(idToken: string): Promise<void> {
   }
 
   const email = (decoded.email ?? "").toLowerCase();
-  if (ADMIN_EMAILS.size > 0 && !ADMIN_EMAILS.has(email)) {
+  if (ADMIN_EMAILS.size === 0 || !ADMIN_EMAILS.has(email)) {
     const err = new Error("Forbidden: admin access required");
     (err as NodeJS.ErrnoException).code = "403";
     throw err;
