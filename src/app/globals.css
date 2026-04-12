@@ -33,7 +33,7 @@ nav {
 .nav-logo {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--bebas); font-size: 22px; letter-spacing: 0.06em;
-  color: var(--ink); text-decoration: none;
+  color: var(--ink); text-decoration: none; cursor: pointer;
 }
 
 .logo-mark {

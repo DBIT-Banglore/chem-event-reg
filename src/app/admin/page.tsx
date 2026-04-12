@@ -20,6 +20,11 @@ interface Student {
     paymentStatus: string | null;
     paymentId: string | null;
     paymentAmount: number | null;
+    // Slot 2
+    eventId2: string | null;
+    paymentStatus2: string | null;
+    paymentId2: string | null;
+    paymentAmount2: number | null;
 }
 
 type TabType = "dashboard" | "students" | "registrations" | "events" | "settings";
@@ -127,6 +132,10 @@ export default function AdminPage() {
                     paymentStatus: d.paymentStatus || null,
                     paymentId: d.paymentId || null,
                     paymentAmount: d.paymentAmount ?? null,
+                    eventId2: d.eventId2 || null,
+                    paymentStatus2: d.paymentStatus2 || null,
+                    paymentId2: d.paymentId2 || null,
+                    paymentAmount2: d.paymentAmount2 ?? null,
                 });
             });
             setStudents(data);
@@ -146,6 +155,10 @@ export default function AdminPage() {
                         paymentStatus: d.paymentStatus || null,
                         paymentId: d.paymentId || null,
                         paymentAmount: d.paymentAmount ?? null,
+                        eventId2: d.eventId2 || null,
+                        paymentStatus2: d.paymentStatus2 || null,
+                        paymentId2: d.paymentId2 || null,
+                        paymentAmount2: d.paymentAmount2 ?? null,
                     });
                 });
                 setStudents(data);
@@ -340,58 +353,112 @@ export default function AdminPage() {
         return students.map(s => ({
             ...s,
             eventName: s.eventId ? (eventMap.get(s.eventId) ?? null) : null,
+            eventName2: s.eventId2 ? (eventMap.get(s.eventId2) ?? null) : null,
         }));
     }, [students, events]);
 
     // ─── Export Helpers ───
+    const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid", "Amount Paid"];
+
+    const makeAllRow = (s: typeof studentsWithEvents[0], serial: number) => ({
+        "#": serial,
+        "Name": s.name,
+        "USN": s.usn,
+        "Email": s.email || "",
+        "Phone": s.phone,
+        "Branch": s.branch,
+        "Section": s.section,
+        "Event 1": s.eventName || "",
+        "Payment Status": s.paymentStatus || "Free",
+        "Transaction ID (Event 1)": s.paymentId || "",
+        "Amount Paid — Event 1": s.paymentAmount ?? "",
+        "Event 2": s.eventName2 || "",
+        "Payment Status (Event 2)": s.paymentStatus2 || (s.eventId2 ? "Free" : ""),
+        "Transaction ID (Event 2)": s.paymentId2 || "",
+        "Amount Paid — Event 2": s.paymentAmount2 ?? "",
+        "Total Amount Paid": ((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)) || "",
+    });
+
+    const makeEventRow = (s: typeof studentsWithEvents[0], evName: string, slot: 1 | 2, serial: number) => ({
+        "#": serial,
+        "Name": s.name,
+        "USN": s.usn,
+        "Email": s.email || "",
+        "Phone": s.phone,
+        "Branch": s.branch,
+        "Section": s.section,
+        "Event Name": evName,
+        "Payment Status": (slot === 1 ? s.paymentStatus : s.paymentStatus2) || "Free",
+        "Transaction ID": (slot === 1 ? s.paymentId : s.paymentId2) || "",
+        "Amount Paid": (slot === 1 ? s.paymentAmount : s.paymentAmount2) ?? "",
+    });
+
     const handleExportAllXLS = async () => {
         const { exportToXLS } = await import("@/lib/xlsExport");
-        const allRows = studentsWithEvents.map(s => ({
-            Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
-            Branch: s.branch, Section: s.section,
-            "Event Name": s.eventName || "", "Event ID": s.eventId || "",
-            "Payment Status": s.paymentStatus || "free",
-            "Transaction ID": s.paymentId || "",
-            "Amount Paid (₹)": s.paymentAmount != null ? s.paymentAmount : "",
-        }));
+        const allRows = studentsWithEvents.map((s, i) => makeAllRow(s, i + 1));
         const sheets: Record<string, string | number | null | undefined>[][] = [allRows];
         const sheetNames = ["All Registrations"];
         events.forEach(ev => {
-            const eventRows = studentsWithEvents
-                .filter(s => s.eventId === ev.eventId)
-                .map(s => ({
-                    Name: s.name, USN: s.usn, Email: s.email || "", Phone: s.phone,
-                    Branch: s.branch, Section: s.section,
-                    "Event Name": ev.name,
-                    "Payment Status": s.paymentStatus || "free",
-                    "Transaction ID": s.paymentId || "",
-                    "Amount Paid (₹)": s.paymentAmount != null ? s.paymentAmount : "",
-                }));
-            sheets.push(eventRows);
+            const slot1 = studentsWithEvents.filter(s => s.eventId === ev.eventId);
+            const slot2 = studentsWithEvents.filter(s => s.eventId2 === ev.eventId);
+            const combined = [
+                ...slot1.map((s, i) => makeEventRow(s, ev.name, 1, i + 1)),
+                ...slot2.map((s, i) => makeEventRow(s, ev.name, 2, slot1.length + i + 1)),
+            ];
+            sheets.push(combined);
             sheetNames.push(ev.name.slice(0, 31));
         });
-        exportToXLS(sheets, sheetNames, `registrations-${new Date().toISOString().split("T")[0]}.xlsx`);
+        await exportToXLS(sheets, sheetNames, `idea-lab-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
+    };
+
+    const formatAmtCsv = (v: number | null | undefined): string =>
+        v == null || v === 0 ? "₹0 (Free)" : `₹${v.toLocaleString("en-IN")}`;
+
+    const buildCSV = (headers: string[], rowArrays: (string | number)[][][]) => {
+        const rows = rowArrays.flat();
+        return [headers.map(h => `"${h}"`).join(","), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`.trim()).join(","))].join("\n");
+    };
+
+    const downloadCSV = (content: string, filename: string) => {
+        const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
+
+    const handleExportAllCSV = () => {
+        const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section",
+            "Event 1", "Payment Status", "Transaction ID (Event 1)", "Amount Paid — Event 1",
+            "Event 2", "Payment Status (Event 2)", "Transaction ID (Event 2)", "Amount Paid — Event 2", "Total Amount Paid"];
+        const rows = studentsWithEvents.map((s, i) => [[
+            i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
+            s.eventName || "", s.paymentStatus || "Free", s.paymentId || "", formatAmtCsv(s.paymentAmount),
+            s.eventName2 || "", s.paymentStatus2 || (s.eventId2 ? "Free" : ""), s.paymentId2 || "", formatAmtCsv(s.paymentAmount2),
+            formatAmtCsv((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)),
+        ]]);
+        downloadCSV(buildCSV(headers, rows), `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.csv`);
     };
 
     const handleExportEventCSV = (eventId: string, eventName: string) => {
-        const rows = studentsWithEvents.filter(s => s.eventId === eventId);
-        const headers = ["Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Payment Status", "Transaction ID", "Amount Paid (INR)"];
-        const csvContent = [
-            headers.join(","),
-            ...rows.map(s =>
-                [s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
-                 eventName, s.paymentStatus || "free", s.paymentId || "",
-                 s.paymentAmount != null ? s.paymentAmount : ""]
-                    .map(c => `"${String(c).replace(/"/g, '""')}"`)
-                    .join(",")
-            ),
-        ].join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`;
-        link.click();
-        URL.revokeObjectURL(link.href);
+        const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
+        const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
+        const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Slot", "Payment Status", "Transaction ID", "Amount Paid"];
+        const s1rows = slot1.map((s, i) => [[i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 1", s.paymentStatus || "Free", s.paymentId || "", formatAmtCsv(s.paymentAmount)]]);
+        const s2rows = slot2.map((s, i) => [[slot1.length + i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 2", s.paymentStatus2 || "Free", s.paymentId2 || "", formatAmtCsv(s.paymentAmount2)]]);
+        downloadCSV(buildCSV(headers, [...s1rows, ...s2rows]), `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`);
+    };
+
+    const handleExportEventXLS = async (eventId: string, eventName: string) => {
+        const { exportToXLS } = await import("@/lib/xlsExport");
+        const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
+        const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
+        const rows = [
+            ...slot1.map((s, i) => makeEventRow(s, eventName, 1, i + 1)),
+            ...slot2.map((s, i) => makeEventRow(s, eventName, 2, slot1.length + i + 1)),
+        ];
+        await exportToXLS([rows], [eventName.slice(0, 31)], `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
     };
 
     // ─── Loading ───
@@ -775,30 +842,38 @@ export default function AdminPage() {
 
                                         {/* Export section */}
                                         <div style={{ borderTop: "1.5px solid var(--line)", paddingTop: "20px" }}>
-                                            <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--muted)", marginBottom: "12px" }}>Export Data</p>
-                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
-                                                {/* Export All XLS */}
-                                                <button
-                                                    onClick={handleExportAllXLS}
-                                                    className="btn-primary"
-                                                    style={{ fontSize: "10px", fontWeight: 800, padding: "9px 18px", display: "flex", alignItems: "center", gap: "6px" }}
-                                                >
-                                                    <FileSpreadsheet style={{ width: 13, height: 13 }} /> Export All (XLS, multi-sheet)
-                                                </button>
+                                            <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--muted)", marginBottom: "14px" }}>Export Data</p>
 
-                                                {/* Per-event CSV buttons */}
-                                                <div style={{ width: "1px", height: "28px", background: "var(--line)", margin: "0 4px" }} />
-                                                {events.map((ev) => (
-                                                    <button
-                                                        key={ev.eventId}
-                                                        onClick={() => handleExportEventCSV(ev.eventId, ev.name)}
-                                                        className="btn-secondary"
-                                                        style={{ fontSize: "9px", fontWeight: 800, padding: "7px 13px", display: "flex", alignItems: "center", gap: "5px", letterSpacing: "0.08em" }}
-                                                    >
-                                                        <Download style={{ width: 11, height: 11 }} />
-                                                        {ev.name.slice(0, 20)}{ev.name.length > 20 ? "…" : ""} CSV
-                                                    </button>
-                                                ))}
+                                            {/* All Registrations row */}
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "10px", padding: "10px 14px", background: "var(--paper2)", border: "1.5px solid var(--line)" }}>
+                                                <span style={{ fontSize: "11px", fontWeight: 700, flex: 1, minWidth: "120px" }}>All Registrations</span>
+                                                <button onClick={handleExportAllCSV} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "7px 14px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                    <Download style={{ width: 11, height: 11 }} /> CSV
+                                                </button>
+                                                <button onClick={handleExportAllXLS} className="btn-primary" style={{ fontSize: "10px", fontWeight: 800, padding: "7px 14px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                    <FileSpreadsheet style={{ width: 11, height: 11 }} /> Excel (All Sheets)
+                                                </button>
+                                            </div>
+
+                                            {/* Per-event rows */}
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                                {events.map((ev) => {
+                                                    const count = studentsWithEvents.filter(s => s.eventId === ev.eventId || s.eventId2 === ev.eventId).length;
+                                                    return (
+                                                        <div key={ev.eventId} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "8px 14px", border: "1.5px solid var(--line)" }}>
+                                                            <span style={{ fontSize: "11px", fontWeight: 600, flex: 1, minWidth: "120px" }}>
+                                                                {ev.name}
+                                                                <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 400, marginLeft: "6px" }}>{count} student{count !== 1 ? "s" : ""}</span>
+                                                            </span>
+                                                            <button onClick={() => handleExportEventCSV(ev.eventId, ev.name)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                                <Download style={{ width: 11, height: 11 }} /> CSV
+                                                            </button>
+                                                            <button onClick={() => handleExportEventXLS(ev.eventId, ev.name)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                                <FileSpreadsheet style={{ width: 11, height: 11 }} /> XLS
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>

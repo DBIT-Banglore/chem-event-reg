@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSession } from "@/lib/session";
 import Navbar from "@/components/Navbar";
 import StudentRegistrationForm from "@/components/StudentRegistrationForm";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillOtp = searchParams.get("otp") ?? undefined;
 
   // If already logged in, redirect to dashboard
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function RegisterPage() {
 
           {/* Registration Form */}
           <div className="glass-card p-6 md:p-8">
-            <StudentRegistrationForm />
+            <StudentRegistrationForm prefillOtp={prefillOtp} />
           </div>
         </div>
       </section>

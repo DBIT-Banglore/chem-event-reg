@@ -37,8 +37,12 @@ export interface Registration {
   branch: string;
   section: string;
   eventId: string | null;
-  paymentId: string | null;   // Razorpay payment ID after successful payment
+  eventId2: string | null;   // Optional second event
+  paymentId: string | null;
   paymentStatus: "free" | "paid" | "pending" | null;
+  paymentId2: string | null;
+  paymentStatus2: "free" | "paid" | "pending" | null;
+  orderId2: string | null;
   registeredAt: Date | null;
 }
 
@@ -58,5 +62,6 @@ export interface SessionData {
   branch: string;
   section: string;
   eventId: string | null;
+  eventId2?: string | null;
   registeredAt: string;
 }

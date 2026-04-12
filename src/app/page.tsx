@@ -2,22 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { getSession } from "@/lib/session";
 import Navbar from "@/components/Navbar";
 
 export default function Home() {
-  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const session = getSession();
-    if (session) {
-      router.replace("/dashboard");
-      return;
-    }
-    setIsLoggedIn(false);
-  }, [router]);
+    setIsLoggedIn(!!session);
+  }, []);
 
   // Scroll reveal
   useEffect(() => {
@@ -227,6 +221,7 @@ export default function Home() {
               { q: "How do I verify my identity?", a: "After entering your USN, an OTP is sent to your college email address (USN@dbit.in). Enter the OTP to proceed. The OTP is valid for 10 minutes." },
               { q: "Can I change my event after registering?", a: "Yes! As long as registrations are open, you can go to your Dashboard and change your selected event. Capacity is checked in real-time — if the new event is full, you'll be notified." },
               { q: "What happens if an event is full?", a: "Full events are clearly marked and cannot be selected. Choose another available event. Contact the admin if you need assistance." },
+              { q: "How many events can I register for?", a: "You can register for a minimum of 1 and a maximum of 2 events. After selecting your first event, you'll get the option to add a second event during registration or later from your dashboard. Both events are independent and may require separate payments." },
               { q: "How do I check my registration status?", a: "Visit the Status page and enter your USN, or log in to your Dashboard to see your current event selection and profile details." },
             ].map(({ q, a }) => (
               <div className="faq-item" key={q}>
@@ -286,7 +281,7 @@ export default function Home() {
       <footer>
         <span className="footer-brand">© 2026 Chem Event Reg — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
         <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>
-          Built by Dept. of CSE, Section B — DBIT &nbsp;·&nbsp; Dev: <strong>Lekhan</strong> &amp; <strong>Mithun Gowda B</strong>
+          Built by Dept. of CSE, Section B — DBIT &nbsp;·&nbsp; Dev: <strong>Mithun Gowda B</strong> &amp; <strong>Lekhan HR</strong>
         </span>
         <div className="footer-links">
           <Link href="/register">Register</Link>

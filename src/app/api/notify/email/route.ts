@@ -102,25 +102,36 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-// ── Shared layout primitives (match home page 1:1) ────────────────────────
+// ── Shared layout primitives ───────────────────────────────────────────────
+
+const EMAIL_STYLES = `<style>
+  @media only screen and (max-width:620px){
+    .ec{width:100%!important}
+    .pad{padding-left:20px!important;padding-right:20px!important}
+    .pad-top{padding-top:28px!important}
+    .h1{font-size:38px!important;line-height:0.95!important}
+    .fr{display:none!important;visibility:hidden!important;max-height:0!important;overflow:hidden!important}
+    .btn-full{display:block!important;text-align:center!important}
+  }
+</style>`;
 
 function emailNav(): string {
   return `
     <tr>
-      <td style="background:#F2EFE9;padding:14px 36px;border-bottom:1.5px solid #0D0D0D;">
+      <td class="pad" style="background:#F2EFE9;padding:14px 36px;border-bottom:1.5px solid #0D0D0D;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:middle;">
             <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-              <td style="background:#0D0D0D;border-radius:50%;width:26px;height:26px;text-align:center;vertical-align:middle;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F2EFE9" stroke-width="2.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+              <td style="background:#0D0D0D;border-radius:50%;width:28px;height:28px;text-align:center;vertical-align:middle;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F2EFE9" stroke-width="2.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
                 </svg>
               </td>
-              <td style="padding-left:8px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:22px;letter-spacing:0.06em;color:#0D0D0D;vertical-align:middle;">Idea Lab</td>
+              <td style="padding-left:10px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;letter-spacing:0.06em;color:#0D0D0D;vertical-align:middle;">Idea Lab</td>
             </tr></table>
           </td>
-          <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.16em;color:#7A7670;vertical-align:middle;">DBIT</td>
+          <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#7A7670;vertical-align:middle;">DBIT</td>
         </tr></table>
       </td>
     </tr>`;
@@ -128,17 +139,19 @@ function emailNav(): string {
 
 function emailTicker(items: string[]): string {
   const cells = items.map((item, i) =>
-    `<td style="padding:0 20px;${i < items.length - 1 ? "border-right:1px solid rgba(255,255,255,0.12);" : ""}vertical-align:middle;white-space:nowrap;">
+    `<td style="padding:0 14px;${i < items.length - 1 ? "border-right:1px solid rgba(255,255,255,0.15);" : ""}vertical-align:middle;white-space:nowrap;">
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-        <td style="padding-right:8px;vertical-align:middle;"><div style="width:5px;height:5px;background:#E8341A;border-radius:50%;display:inline-block;"></div></td>
-        <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#F2EFE9;vertical-align:middle;">${item}</td>
+        <td style="padding-right:6px;vertical-align:middle;"><div style="width:5px;height:5px;background:#E8341A;border-radius:50%;display:inline-block;"></div></td>
+        <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#F2EFE9;vertical-align:middle;">${item}</td>
       </tr></table>
     </td>`
   ).join("");
   return `
     <tr>
-      <td style="background:#0D0D0D;height:38px;overflow:hidden;padding:0 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table>
+      <td style="background:#0D0D0D;padding:0;">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="min-width:100%;height:36px;"><tr>${cells}</tr></table>
+        </div>
       </td>
     </tr>`;
 }
@@ -149,10 +162,10 @@ function emailEyebrow(label: string): string {
       <tr>
         <td style="vertical-align:middle;white-space:nowrap;padding-right:12px;">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td style="padding-right:8px;vertical-align:middle;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="#E8341A" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5"/></svg>
+            <td style="padding-right:7px;vertical-align:middle;">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="#E8341A" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12"/></svg>
             </td>
-            <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#E8341A;vertical-align:middle;">${label}</td>
+            <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#E8341A;vertical-align:middle;">${label}</td>
           </tr></table>
         </td>
         <td style="border-top:1.5px solid #E8341A;width:100%;vertical-align:middle;">&nbsp;</td>
@@ -163,13 +176,14 @@ function emailEyebrow(label: string): string {
 function emailFooter(): string {
   return `
     <tr>
-      <td style="padding:20px 36px;border-top:1.5px solid #0D0D0D;">
+      <td class="pad" style="padding:18px 36px;border-top:1.5px solid #0D0D0D;background:#F2EFE9;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7A7670;line-height:1.6;">
-            &copy; 2026 Chem Event Reg &mdash; Chemistry Department,<br>Don Bosco Institute of Technology, Bangalore
+          <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:12px;letter-spacing:0.08em;color:#7A7670;line-height:1.7;">
+            &copy; 2026 Idea Lab &mdash; Chemistry Dept, DBIT Bangalore<br>
+            <span style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;letter-spacing:0.04em;">By Mithun Gowda B &amp; Lekhan HR</span>
           </td>
-          <td align="right" valign="bottom" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:11px;letter-spacing:0.08em;color:#7A7670;line-height:1.6;white-space:nowrap;">
-            Built by Dept. of CSE,<br>Section B &mdash; DBIT
+          <td class="fr" align="right" valign="bottom" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;color:#7A7670;white-space:nowrap;line-height:1.6;">
+            Dept. of CSE<br>Section B
           </td>
         </tr></table>
       </td>
@@ -183,42 +197,45 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  ${EMAIL_STYLES}
 </head>
 <body style="margin:0;padding:0;background:#E8E4DD;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E8E4DD;padding:40px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E8E4DD;padding:32px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
+      <table class="ec" role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
 
         ${emailNav()}
         ${emailTicker(["Idea Lab","DBIT Bangalore","Team Invite","Action Required"])}
 
-        <!-- HERO SECTION -->
+        <!-- HERO -->
         <tr>
-          <td style="padding:48px 36px 0;">
+          <td class="pad pad-top" style="padding:44px 36px 0;">
             ${emailEyebrow("Team Invitation &mdash; Action Required")}
 
-            <div style="margin-bottom:20px;">
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">You&apos;re</div>
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:transparent;-webkit-text-stroke:2px #0D0D0D;">Invited</div>
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">to join.</div>
+            <div style="margin-bottom:18px;">
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">You&apos;re</div>
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:transparent;-webkit-text-stroke:2px #0D0D0D;">Invited</div>
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">to join.</div>
             </div>
 
-            <p style="margin:0 0 40px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:15px;color:#7A7670;line-height:1.7;max-width:400px;">
+            <p style="margin:0 0 32px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;color:#7A7670;line-height:1.7;">
               <strong style="color:#0D0D0D;">${safeFrom}</strong> has invited you to join <strong style="color:#0D0D0D;">${safeTeam}</strong> on Idea Lab. Accept or decline from your dashboard.
             </p>
           </td>
         </tr>
 
         <!-- DIVIDER -->
-        <tr><td style="padding:0 36px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1.5px solid #0D0D0D;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>
+        <tr><td class="pad" style="padding:0 36px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1.5px solid #0D0D0D;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>
 
         <!-- CTA BLOCK -->
         <tr>
-          <td style="padding:40px 36px;border-bottom:1.5px solid rgba(13,13,13,0.12);">
-            <!-- stat-label -->
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <td class="pad" style="padding:36px 36px;border-bottom:1.5px solid rgba(13,13,13,0.12);">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
               <tr>
                 <td style="padding-right:8px;vertical-align:middle;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7A7670" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
@@ -230,10 +247,10 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
               </tr>
             </table>
 
-            <!-- btn-large (ink bg, paper text — matches .btn-large) -->
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+            <!-- CTA button — full-width on mobile -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;width:100%;">
               <tr>
-                <td style="background:#0D0D0D;padding:14px 32px;">
+                <td style="background:#0D0D0D;padding:14px 32px;text-align:center;">
                   <a href="${inviteUrl}" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:700;color:#F2EFE9;text-decoration:none;text-transform:uppercase;letter-spacing:0.08em;">
                     View Invite &nbsp;&#8594;
                   </a>
@@ -241,7 +258,6 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
               </tr>
             </table>
 
-            <!-- step-tag -->
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="padding:4px 10px;border:1.5px solid rgba(13,13,13,0.12);">
@@ -261,9 +277,9 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
 
         <!-- Ignore notice -->
         <tr>
-          <td style="padding:24px 36px;">
+          <td class="pad" style="padding:22px 36px;">
             <p style="margin:0;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:12px;color:#7A7670;line-height:1.7;">
-              Weren't expecting this invite? You can safely ignore this email.
+              Weren&apos;t expecting this invite? You can safely ignore this email.
             </p>
           </td>
         </tr>
@@ -284,42 +300,45 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  ${EMAIL_STYLES}
 </head>
 <body style="margin:0;padding:0;background:#E8E4DD;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E8E4DD;padding:40px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E8E4DD;padding:32px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
+      <table class="ec" role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
 
         ${emailNav()}
         ${emailTicker(["Idea Lab","DBIT Bangalore","Join Request","Review Needed"])}
 
-        <!-- HERO SECTION -->
+        <!-- HERO -->
         <tr>
-          <td style="padding:48px 36px 0;">
+          <td class="pad pad-top" style="padding:44px 36px 0;">
             ${emailEyebrow("Join Request &mdash; Review Needed")}
 
-            <div style="margin-bottom:20px;">
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">New</div>
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:transparent;-webkit-text-stroke:2px #0D0D0D;">Join</div>
-              <div style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:56px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">Request.</div>
+            <div style="margin-bottom:18px;">
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">New</div>
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:transparent;-webkit-text-stroke:2px #0D0D0D;">Join</div>
+              <div class="h1" style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:#0D0D0D;">Request.</div>
             </div>
 
-            <p style="margin:0 0 40px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:15px;color:#7A7670;line-height:1.7;max-width:400px;">
+            <p style="margin:0 0 32px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;color:#7A7670;line-height:1.7;">
               <strong style="color:#0D0D0D;">${safeFrom}</strong> wants to join <strong style="color:#0D0D0D;">${safeTeam}</strong>. Review the request from your dashboard and accept or decline.
             </p>
           </td>
         </tr>
 
         <!-- DIVIDER -->
-        <tr><td style="padding:0 36px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1.5px solid #0D0D0D;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>
+        <tr><td class="pad" style="padding:0 36px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1.5px solid #0D0D0D;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>
 
         <!-- CTA BLOCK -->
         <tr>
-          <td style="padding:40px 36px;border-bottom:1.5px solid rgba(13,13,13,0.12);">
-            <!-- stat-label -->
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <td class="pad" style="padding:36px 36px;border-bottom:1.5px solid rgba(13,13,13,0.12);">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
               <tr>
                 <td style="padding-right:8px;vertical-align:middle;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7A7670" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
@@ -330,10 +349,10 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
               </tr>
             </table>
 
-            <!-- btn-large -->
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+            <!-- CTA button — full-width on mobile -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;width:100%;">
               <tr>
-                <td style="background:#0D0D0D;padding:14px 32px;">
+                <td style="background:#0D0D0D;padding:14px 32px;text-align:center;">
                   <a href="${dashboardUrl}" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:700;color:#F2EFE9;text-decoration:none;text-transform:uppercase;letter-spacing:0.08em;">
                     Review Request &nbsp;&#8594;
                   </a>
@@ -341,10 +360,9 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
               </tr>
             </table>
 
-            <!-- step-tag red (Limited seats style) -->
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="padding:4px 10px;border:1.5px solid rgba(232,52,26,0.3);border-left:3px solid #E8341A;">
+                <td style="padding:5px 10px;border:1.5px solid rgba(232,52,26,0.3);border-left:3px solid #E8341A;">
                   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
                     <td style="padding-right:6px;vertical-align:middle;">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#E8341A" stroke-width="2.5" xmlns="http://www.w3.org/2000/svg">
@@ -359,11 +377,11 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
           </td>
         </tr>
 
-        <!-- Ignore notice -->
+        <!-- Notice -->
         <tr>
-          <td style="padding:24px 36px;">
+          <td class="pad" style="padding:22px 36px;">
             <p style="margin:0;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:12px;color:#7A7670;line-height:1.7;">
-              You're receiving this because you're the lead of ${safeTeam}.
+              You&apos;re receiving this because you&apos;re the lead of ${safeTeam}.
             </p>
           </td>
         </tr>

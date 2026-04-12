@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { validateUSN } from "@/lib/usnValidator";
 import { Search, CalendarDays, CheckCircle2, User } from "lucide-react";
+
+const USN_FORMAT = /^1DB2[0-9](CS|IC|CI|AD|IS|EC|EE)\d{3}$/i;
 
 export default function StatusLookup() {
     const [usn, setUSN] = useState("");
@@ -17,12 +18,13 @@ export default function StatusLookup() {
     } | null>(null);
     const [eventId, setEventId] = useState<string | null>(null);
     const [eventName, setEventName] = useState<string | null>(null);
+    const [eventId2, setEventId2] = useState<string | null>(null);
+    const [eventName2, setEventName2] = useState<string | null>(null);
 
     const handleLookup = async () => {
         const upperUSN = usn.trim().toUpperCase();
-        const validation = validateUSN(upperUSN);
-        if (!validation.valid) {
-            setError(validation.error || "Invalid USN format.");
+        if (!USN_FORMAT.test(upperUSN)) {
+            setError("Invalid USN format. Expected format: 1DB25CS001");
             return;
         }
 
@@ -31,6 +33,8 @@ export default function StatusLookup() {
         setStudentData(null);
         setEventId(null);
         setEventName(null);
+        setEventId2(null);
+        setEventName2(null);
 
         try {
             const res = await fetch("/api/auth/lookup-usn", {
@@ -60,6 +64,8 @@ export default function StatusLookup() {
             });
             setEventId(json.eventId || null);
             setEventName(json.eventName || null);
+            setEventId2(json.eventId2 || null);
+            setEventName2(json.eventName2 || null);
         } catch (err) {
             setError("Failed to fetch data. Please try again.");
             console.error(err);
@@ -110,16 +116,28 @@ export default function StatusLookup() {
                         </div>
                     </div>
 
-                    {/* Event */}
+                    {/* Events */}
                     <div style={{ padding: "16px 20px", border: "1.5px solid var(--line)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
                             <CalendarDays style={{ width: 16, height: 16, color: "var(--red)" }} />
-                            <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>Event</span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                                {eventId2 ? "Events (2)" : "Event"}
+                            </span>
                         </div>
                         {eventId ? (
-                            <div>
-                                <p style={{ fontWeight: 700, fontSize: "15px", color: "var(--ink)", marginBottom: "4px" }}>{eventName || eventId}</p>
-                                <p style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--muted)" }}>{eventId}</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <div>
+                                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: "2px" }}>Event 1</p>
+                                    <p style={{ fontWeight: 700, fontSize: "15px", color: "var(--ink)", marginBottom: "2px" }}>{eventName || eventId}</p>
+                                    <p style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--muted)" }}>{eventId}</p>
+                                </div>
+                                {eventId2 && (
+                                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: "10px" }}>
+                                        <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: "2px" }}>Event 2</p>
+                                        <p style={{ fontWeight: 700, fontSize: "15px", color: "var(--ink)", marginBottom: "2px" }}>{eventName2 || eventId2}</p>
+                                        <p style={{ fontSize: "11px", fontFamily: "monospace", color: "var(--muted)" }}>{eventId2}</p>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <p style={{ fontSize: "13px", color: "var(--muted)" }}>No event selected yet.</p>
