@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
 const COOKIE_NAME = "idealab_token";
 
@@ -72,6 +73,13 @@ export async function middleware(req: NextRequest) {
 
   // ── API origin checking ─────────────────────────────────────────────────
   if (pathname.startsWith("/api")) {
+    // Global rate limit: 200 requests per hour per IP
+    const ip = getClientIP(req);
+    const globalRl = rateLimit(ip, "global_api", 200, 60 * 60_000);
+    if (!globalRl.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     const origin = getOrigin(req);
 
     if (!origin) {
