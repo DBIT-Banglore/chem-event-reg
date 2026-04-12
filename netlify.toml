@@ -3,12 +3,13 @@
   publish = ".next"
 
 [build.environment]
-  # Ignore ONLY public env vars (safe ones)
+  NODE_VERSION        = "20"
   SECRETS_SCAN_ENABLED = "false"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Optional: cache headers for Next.js static assets
+# Cache headers for Next.js static assets
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
@@ -17,12 +18,12 @@
 # Next.js image optimization redirects (Netlify default)
 [[redirects]]
   from = "/_next/image"
-  to = "/.netlify/images"
+  to   = "/.netlify/images"
   status = 200
-  force = true
+  force  = true
 
 [[redirects]]
   from = "/_ipx/*"
-  to = "/.netlify/images"
+  to   = "/.netlify/images"
   status = 200
-  force = true
+  force  = true
