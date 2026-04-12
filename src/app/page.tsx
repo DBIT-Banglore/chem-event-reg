@@ -219,7 +219,7 @@ export default function Home() {
             {[
               { q: "Who can register?", a: "Any DBIT student whose USN is present in the student database uploaded by the admin. If your USN is not found, contact the Chemistry department to get it added." },
               { q: "How do I verify my identity?", a: "After entering your USN, an OTP is sent to your college email address (USN@dbit.in). Enter the OTP to proceed. The OTP is valid for 10 minutes." },
-              { q: "Can I change my event after registering?", a: "You can change your event once while registrations are open. Go to your Dashboard and select a different event. Note: this is a one-time change — choose carefully. If the new event is full, you’ll be notified." },
+              { q: "Can I change my event after registering?", a: "No. Once you select and confirm an event, your choice is final. Please choose your event carefully before confirming. Contact the Chemistry department admin if you have special circumstances." },
               { q: "What happens if an event is full?", a: "Full events are clearly marked and cannot be selected. Choose another available event. Contact the admin if you need assistance." },
               { q: "How do I check my registration status?", a: "Log in to your Dashboard to see your current event selection and profile details." },
             ].map(({ q, a }) => (

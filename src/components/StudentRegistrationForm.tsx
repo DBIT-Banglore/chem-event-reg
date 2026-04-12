@@ -717,7 +717,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered }: { 
 
           <div>
             <h3 style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.04em", marginBottom: "4px" }}>Select Your Event</h3>
-            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Choose the event you want to participate in. You may change your selection once while registrations are open — choose carefully.</p>
+            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Choose the event you want to participate in. <strong style={{ color: "var(--red)" }}>Your selection is final</strong> — choose carefully before confirming.</p>
           </div>
 
           {eventsLoading ? (
