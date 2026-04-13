@@ -112,7 +112,10 @@ export default function AdminPage() {
             const res = await fetch("/api/admin/students", {
                 headers: { "x-admin-token": idToken },
             });
-            if (!res.ok) throw new Error("Failed to fetch data");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Failed to fetch data" }));
+                throw new Error(errorData.error || "Failed to fetch data");
+            }
             const result = await res.json();
 
             // CSV students
@@ -203,7 +206,10 @@ export default function AdminPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ idToken, updates: { registrationsOpen: !registrationsOpen } }),
             });
-            if (!res.ok) throw new Error("Failed to update config");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Failed to update config" }));
+                throw new Error(errorData.error || "Failed to update config");
+            }
             setRegistrationsOpen(!registrationsOpen);
         } catch {
             console.error("Error updating config");
@@ -288,7 +294,10 @@ export default function AdminPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ idToken, eventId, isActive: !currentIsActive }),
             });
-            if (!res.ok) throw new Error("Failed to toggle event");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Failed to toggle event" }));
+                throw new Error(errorData.error || "Failed to toggle event");
+            }
             await fetchEvents();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed");
@@ -737,7 +746,10 @@ export default function AdminPage() {
                                                 headers: { "Content-Type": "application/json" },
                                                 body: JSON.stringify({ idToken, usn, data }),
                                             });
-                                            if (!res.ok) throw new Error("Update failed");
+                                            if (!res.ok) {
+                                                const errorData = await res.json().catch(() => ({ error: "Update failed" }));
+                                                throw new Error(errorData.error || "Update failed");
+                                            }
                                             setCsvStudents((prev) =>
                                                 prev.map((s) => (s.usn === usn ? { ...s, ...data } : s))
                                             );
@@ -751,7 +763,10 @@ export default function AdminPage() {
                                                 headers: { "Content-Type": "application/json" },
                                                 body: JSON.stringify({ idToken, usn }),
                                             });
-                                            if (!res.ok) throw new Error("Delete failed");
+                                            if (!res.ok) {
+                                                const errorData = await res.json().catch(() => ({ error: "Delete failed" }));
+                                                throw new Error(errorData.error || "Delete failed");
+                                            }
                                             setCsvStudents((prev) => prev.filter((s) => s.usn !== usn));
                                             setCsvStudentCount((c) => c - 1);
                                         }}

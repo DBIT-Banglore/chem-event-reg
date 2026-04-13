@@ -26,10 +26,6 @@ function ensureCleanup() {
       if (entry.timestamps.length === 0) store.delete(key);
     }
   }, 5 * 60 * 1000);
-  // Don't block process exit
-  if (cleanupTimer && typeof cleanupTimer === "object" && "unref" in cleanupTimer) {
-    cleanupTimer.unref();
-  }
 }
 
 export function rateLimit(

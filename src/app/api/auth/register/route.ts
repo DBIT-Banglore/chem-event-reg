@@ -4,6 +4,7 @@ import { getSessionFromRequest } from "@/lib/jwt";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { getBranchName, getSection, validateUSN } from "@/lib/usnValidator";
 import { FieldValue } from "firebase-admin/firestore";
+import { sanitizeName, sanitizePhone, sanitizeEmail, containsXSSPatterns } from "@/lib/sanitize";
 
 const NAME_MAX = 100;
 const PHONE_RE = /^\d{10}$/;
@@ -33,22 +34,37 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, email, phone } = body;
 
-    // Input validation
-    if (!name || typeof name !== "string" || !name.trim() || name.trim().length > NAME_MAX) {
-      return NextResponse.json({ error: "Valid name is required (max 100 chars)." }, { status: 400 });
+    // XSS Protection - Check for malicious patterns first
+    if (name && containsXSSPatterns(name)) {
+      return NextResponse.json({ error: "Invalid input: malicious content detected." }, { status: 400 });
     }
-    if (!phone || typeof phone !== "string" || !PHONE_RE.test(phone.trim())) {
-      return NextResponse.json({ error: "Valid 10-digit phone number is required." }, { status: 400 });
-    }
-    // Email is now optional since it was verified during OTP step
-    // Only validate if email is provided
-    if (email && typeof email === "string" && email.trim() && !email.trim().includes("@")) {
-      return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+    if (email && containsXSSPatterns(email)) {
+      return NextResponse.json({ error: "Invalid input: malicious content detected." }, { status: 400 });
     }
 
-    const cleanName = name.trim();
-    const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
-    const cleanPhone = phone.trim();
+    // Input sanitization and validation
+    const nameSanitized = sanitizeName(name);
+    if (!nameSanitized.isValid) {
+      return NextResponse.json({ error: "Valid name is required (letters, spaces, hyphens, apostrophes only)." }, { status: 400 });
+    }
+
+    const phoneSanitized = sanitizePhone(phone);
+    if (!phoneSanitized.isValid) {
+      return NextResponse.json({ error: "Valid 10-digit phone number is required." }, { status: 400 });
+    }
+
+    // Email is optional, but sanitize if provided
+    let cleanEmail = null;
+    if (email && email.trim()) {
+      const emailSanitized = sanitizeEmail(email);
+      if (!emailSanitized.isValid) {
+        return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+      }
+      cleanEmail = emailSanitized.sanitized;
+    }
+
+    const cleanName = nameSanitized.sanitized;
+    const cleanPhone = phoneSanitized.sanitized;
 
     const db = getAdminFirestore();
 

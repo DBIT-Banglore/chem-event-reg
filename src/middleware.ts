@@ -4,31 +4,12 @@ import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
 const COOKIE_NAME = "idealab_token";
 
-// Admin emails — loaded from env
-const ADMIN_EMAILS = new Set(
-  (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-);
-
-// Allowed origins — loaded from env or defaults
-// PRODUCTION: Strictly locked to chem-event.netlify.app
-// DEVELOPMENT: Allow localhost for testing
-const getDefaultOrigins = () => {
-  if (process.env.NODE_ENV === "production") {
-    // Production: Only allow the specific Netlify domain
-    return "https://chem-event.netlify.app";
-  } else {
-    // Development: Allow localhost and local network
-    return "http://localhost:3000,http://localhost:3001,http://192.0.0.4:3000";
-  }
-};
-
+// Allowed origins — STRICT MODE: Only production and specific local development
 const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || getDefaultOrigins())
+  (process.env.ALLOWED_ORIGINS || "https://idealab.dfriendsclub.in,https://chem-event.netlify.app")
     .split(",")
     .map((s) => s.trim())
+    .filter(Boolean)
 );
 
 function getOrigin(req: NextRequest): string | null {
@@ -74,18 +55,21 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+
+  // CSP - Allow inline scripts needed by Next.js/React development
+  // Production still allows inline scripts for compatibility
   response.headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://api.brevo.com https://api.razorpay.com`
+    `default-src 'self'; script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://api.brevo.com https://api.razorpay.com https://lumberjack.razorpay.com; frame-src https://api.razorpay.com`
   );
-  response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   return response;
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ── Route protection: /dashboard/* ─────────────────────────────────────
+  // ── Route protection: /dashboard/* ─────────────────────────────
   if (pathname.startsWith("/dashboard")) {
     const payload = await getJWTPayload(req);
     if (!payload) {
@@ -95,36 +79,50 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // ── /admin/* passes through — uses its own Firebase email/password auth ──
-  // Security headers still applied; Firebase Auth has built-in brute-force protection.
+  // ── Route protection: /register/* ─────────────────────────────
+  if (pathname.startsWith("/register")) {
+    // Add security headers for registration routes
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // ── Route protection: /status/* ─────────────────────────────
+  if (pathname.startsWith("/status")) {
+    return addSecurityHeaders(NextResponse.next());
+  }
 
   // ── API origin checking ─────────────────────────────────────────────────
   if (pathname.startsWith("/api")) {
-    // Global rate limit: 200 requests per hour per IP
+    // Global rate limit: 100 requests per hour per IP (reduced for security)
     const ip = getClientIP(req);
-    const globalRl = rateLimit(ip, "global_api", 200, 60 * 60_000);
+    const globalRl = rateLimit(ip, "global_api", 100, 60 * 60_000);
     if (!globalRl.allowed) {
-      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+      return addSecurityHeaders(NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 }));
     }
 
-    // Allow same-origin requests (admin panel calling its own API)
-    if (isSameOriginRequest(req)) {
-      // Same-origin requests are always allowed
-      return NextResponse.next();
+    // STRICT RATE LIMITING for authentication endpoints
+    if (pathname.startsWith("/api/auth")) {
+      const authRl = rateLimit(ip, "auth_api", 20, 15 * 60_000); // 20 requests per 15 minutes
+      if (!authRl.allowed) {
+        return addSecurityHeaders(NextResponse.json({ error: "Too many authentication attempts. Please try again later." }, { status: 429 }));
+      }
     }
 
+    // STRICT RATE LIMITING for admin endpoints
+    if (pathname.startsWith("/api/admin")) {
+      const adminRl = rateLimit(ip, "admin_api", 10, 5 * 60_000); // 10 requests per 5 minutes
+      if (!adminRl.allowed) {
+        return addSecurityHeaders(NextResponse.json({ error: "Too many admin requests. Please try again later." }, { status: 429 }));
+      }
+    }
+
+    // CORS checking for API calls
+    // In development, allow localhost requests; in production, enforce strict CORS
+    const host = req.headers.get("host");
+    const isLocalhost = host?.startsWith("localhost");
     const origin = getOrigin(req);
 
-    if (!origin) {
-      // Allow server-side calls (SSR/API-to-API within the same app)
-      const host = req.headers.get("host");
-      const isLocalhost = host?.startsWith("localhost");
-      const isSameHost = ALLOWED_ORIGINS.has(`https://${host}`) || ALLOWED_ORIGINS.has(`http://${host}`);
-      if (!isLocalhost && !isSameHost) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    } else if (!ALLOWED_ORIGINS.has(origin)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!isLocalhost && origin && !ALLOWED_ORIGINS.has(origin)) {
+      return addSecurityHeaders(NextResponse.json({ error: "Forbidden: Cross-origin requests not allowed" }, { status: 403 }));
     }
   }
 
@@ -132,11 +130,3 @@ export async function middleware(req: NextRequest) {
   const response = NextResponse.next();
   return addSecurityHeaders(response);
 }
-
-export const config = {
-  matcher: [
-    "/api/:path*",
-    "/dashboard/:path*",
-    "/admin/:path*",
-  ],
-};

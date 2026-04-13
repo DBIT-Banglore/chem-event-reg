@@ -70,10 +70,9 @@ async function sendWithBrevo(
   }
 }
 
-/**
- * Round-robin with fallback: start from the next key in rotation,
- * if it fails (rate limit / error), try the remaining keys in order.
- */
+// ── Round-robin with fallback: start from next key in rotation,
+// if it fails (rate limit / error), try remaining keys in order.
+
 async function sendEmailWithFallback(
   toEmail: string,
   subject: string,
@@ -85,7 +84,7 @@ async function sendEmailWithFallback(
   const startIdx = rrIndex % creds.length;
   rrIndex++;
 
-  // Try starting from the round-robin pick, then wrap around
+  // Try starting from round-robin pick, then wrap around
   for (let attempt = 0; attempt < creds.length; attempt++) {
     const idx = (startIdx + attempt) % creds.length;
     const result = await sendWithBrevo(creds[idx], toEmail, subject, html);
@@ -98,10 +97,19 @@ async function sendEmailWithFallback(
   throw new Error("All Brevo API keys exhausted. Could not send email.");
 }
 
+/** Masks an email so only first/last char of local part are visible. */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain || !local) return "***@***";
+  if (local.length <= 2) return `${local[0]}***@${domain}`;
+  return `${local[0]}${"*".repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
+}
+
 // ── OTP email template — dark brand system matching site ──────────────────
 
 function buildEmailHtml(otp: string, baseUrl: string): string {
   const digits = otp.split("");
+
   const digitCells = digits
     .map(
       (d, i) =>
@@ -152,13 +160,13 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
           <!-- Red accent strip -->
           <tr>
             <td style="background:#ef2b14;padding:12px 32px;text-align:center;color:#ffffff;font-size:10px;letter-spacing:4px;text-transform:uppercase;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
-              Chemistry Department &bull; Secure Access &bull; One-Time Code
+              Chemistry Department • Secure Access • One-Time Code
             </td>
           </tr>
 
           <!-- Hero -->
           <tr>
-            <td class="email-body" style="padding:40px 40px 20px 40px;">
+            <td class="email-body" style="padding:40px 40px 20px;">
               <div style="font-size:11px;color:#a1a1a1;letter-spacing:5px;text-transform:uppercase;margin-bottom:14px;font-family:Arial,Helvetica,sans-serif;">
                 Verification Code
               </div>
@@ -166,7 +174,7 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
                 Confirm Your Registration
               </div>
               <div style="font-size:15px;line-height:1.7;color:#d2d2d2;font-family:Arial,Helvetica,sans-serif;">
-                Enter the code below to verify your student email and continue your
+                Enter code below to verify your student email and continue your
                 registration for <strong style="color:#ffffff;">Chem Event Reg</strong>.
               </div>
             </td>
@@ -181,7 +189,7 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
 
           <!-- OTP digit boxes -->
           <tr>
-            <td style="padding:32px 40px 16px 40px;" align="center">
+            <td style="padding:32px 40px 16px;" align="center">
               <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;text-align:center;">
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="display:inline-table;margin:0 auto;">
                   <tr>${digitCells}</tr>
@@ -189,7 +197,7 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
               </div>
               <div style="margin-top:16px;font-size:13px;color:#9a9a9a;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
                 Your code:&nbsp;
-                <span style="color:#ffffff;letter-spacing:8px;font-weight:700;font-family:Arial,Helvetica,sans-serif;background:#2a2a2a;padding:4px 8px;border:1px solid #4a4a4a;">${otp}</span>
+                <span style="color:#ffffff;letter-spacing:8px;font-weight:700;font-family:Arial,Helvetica,sans-serif;background:#2b2b2b;padding:4px 8px;border:1px solid #4a4a4a;">${otp}</span>
               </div>
             </td>
           </tr>
@@ -206,7 +214,7 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
           <!-- Primary CTA -->
           <tr>
             <td align="center" style="padding:28px 40px 8px 40px;">
-              <a href="${baseUrl}/register"
+              <a href="${baseUrl}/register?usn=${encodeURIComponent(otp)}"
                  style="display:inline-block;background:#ef2b14;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;">
                 Enter Verification Code
               </a>
@@ -236,7 +244,7 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
               If you didn't request this code, you can safely ignore this email.<br><br>
               <span style="color:#ffffff;">Chem Event Reg — Chemistry Department</span><br>
               Don Bosco Institute of Technology, Bangalore<br>
-              Built by Mithun Gowda B &amp; Lekhan HR — Dept. of CSE, DBIT
+              Built by Mithun Gowda B • Lekhan HR — Dept. of CSE, DBIT
             </td>
           </tr>
 
@@ -252,58 +260,77 @@ function buildEmailHtml(otp: string, baseUrl: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, usn } = await req.json();
-
-    if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
+    const { usn, sendOtp } = await req.json();
 
     if (!usn || typeof usn !== "string") {
       return NextResponse.json({ error: "USN is required" }, { status: 400 });
     }
 
-    // Validate email format and length (defense against injection and large payloads)
-    const emailCandidate = email.trim().toLowerCase();
-    if (emailCandidate.length > 254 || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(emailCandidate)) {
-      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
-    }
-
-    // IP rate limiting: 5 sends per IP per 15 min
-    const ip = getClientIP(req);
-    const { allowed, retryAfterMs } = rateLimit(ip, "send-otp", 5, 15 * 60 * 1000);
-    if (!allowed) {
-      const retryAfterSec = Math.ceil(retryAfterMs / 1000);
-      return NextResponse.json(
-        { error: `Too many requests. Please try again in ${retryAfterSec} seconds.` },
-        { status: 429 }
-      );
-    }
-
-    const cleanEmail = emailCandidate;
     const cleanUSN = usn.trim().toUpperCase();
+
+    if (!/^[A-Z0-9]{6,12}$/.test(cleanUSN)) {
+      return NextResponse.json({ error: "Invalid USN format." }, { status: 400 });
+    }
+
     const adminDb = getAdminFirestore();
 
-    // Validate USN against local CSV-derived list (not Firebase)
-    const usnCheck = validateUSN(cleanUSN);
-    if (!usnCheck.valid) {
-      return NextResponse.json(
-        { error: "Invalid USN or email combination." },
-        { status: 400 }
-      );
-    }
-
-    // Check if email matches in students or registrations (Firebase lookup for email match only)
+    // Check if student is in database (students or registrations)
     const [studentDoc, regDoc] = await Promise.all([
       adminDb.collection("students").doc(cleanUSN).get(),
       adminDb.collection("registrations").doc(cleanUSN).get(),
     ]);
 
-    // If student exists in Firebase, verify email matches
-    const storedEmail = (regDoc.exists ? regDoc.data()?.email : studentDoc.exists ? studentDoc.data()?.email : null);
-    if (storedEmail && storedEmail.trim().toLowerCase() !== cleanEmail) {
+    // Get student info - prioritise registration data if exists
+    let studentData = null;
+    let emailToSend = null;
+
+    if (regDoc.exists) {
+      studentData = regDoc.data()!;
+      emailToSend = studentData.email;
+    } else if (studentDoc.exists) {
+      studentData = studentDoc.data()!;
+      emailToSend = studentData.email;
+    }
+
+    // If no student data found - return error
+    if (!studentData || !emailToSend) {
+      return NextResponse.json({
+        found: false,
+        error: "USN not found in student database. Contact your admin to upload student CSV.",
+      });
+    }
+
+    // If just looking up USN (not sending OTP), return student info
+    if (!sendOtp) {
+      return NextResponse.json({
+        success: true,
+        student: {
+          usn: cleanUSN,
+          name: studentData.name || "",
+          email: emailToSend, // Actual email for verification (frontend will keep this private)
+          maskedEmail: maskEmail(emailToSend), // Display only
+          branch: studentData.branch || "",
+          section: studentData.section || "",
+        },
+        otpSent: false,
+      });
+    }
+
+    // IP rate limiting: 5 sends per IP per 15 min
+    const ip = getClientIP(req);
+    const perMin = rateLimit(ip, "send-otp-min", 5, 60 * 1000);
+    if (!perMin.allowed) {
+      const sec = Math.ceil(perMin.retryAfterMs / 1000);
       return NextResponse.json(
-        { error: "Invalid USN or email combination." },
-        { status: 400 }
+        { error: `Too many requests. Please wait ${sec}s before trying again.` },
+        { status: 429 }
+      );
+    }
+    const perHour = rateLimit(ip, "send-otp-hr", 30, 60 * 60 * 1000);
+    if (!perHour.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again in an hour." },
+        { status: 429 }
       );
     }
 
@@ -314,7 +341,7 @@ export async function POST(req: NextRequest) {
     // Rate limit: max 1 OTP per email per 60 seconds
     const recentSnap = await adminDb
       .collection("otp_codes")
-      .where("email", "==", cleanEmail)
+      .where("email", "==", emailToSend)
       .where("used", "==", false)
       .where("createdAt", ">", now - 60 * 1000)
       .limit(1)
@@ -329,7 +356,7 @@ export async function POST(req: NextRequest) {
 
     // Store OTP in Firestore (admin SDK)
     await adminDb.collection("otp_codes").add({
-      email: cleanEmail,
+      email: emailToSend,
       otp,
       expiresAt,
       used: false,
@@ -340,12 +367,23 @@ export async function POST(req: NextRequest) {
     // Send email with round-robin + fallback
     const baseUrl = req.nextUrl.origin;
     await sendEmailWithFallback(
-      cleanEmail,
+      emailToSend,
       `${otp} is your ChemNova 2026 verification code`,
       buildEmailHtml(otp, baseUrl)
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      student: {
+        usn: cleanUSN,
+        name: studentData.name || "",
+        email: emailToSend, // Actual email for verification (frontend will keep this private)
+        maskedEmail: maskEmail(emailToSend), // Display only
+        branch: studentData.branch || "",
+        section: studentData.section || "",
+      },
+      otpSent: true,
+    });
   } catch (err) {
     console.error("Send OTP error:", err);
     return NextResponse.json(
