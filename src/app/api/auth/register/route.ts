@@ -40,12 +40,14 @@ export async function POST(req: NextRequest) {
     if (!phone || typeof phone !== "string" || !PHONE_RE.test(phone.trim())) {
       return NextResponse.json({ error: "Valid 10-digit phone number is required." }, { status: 400 });
     }
-    if (!email || typeof email !== "string" || !email.trim().includes("@")) {
+    // Email is now optional since it was verified during OTP step
+    // Only validate if email is provided
+    if (email && typeof email === "string" && email.trim() && !email.trim().includes("@")) {
       return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
     }
 
     const cleanName = name.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
     const cleanPhone = phone.trim();
 
     const db = getAdminFirestore();
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     await db.collection("registrations").doc(usn).set({
       name: cleanName,
       usn,
-      email: cleanEmail,
+      email: cleanEmail, // Will use existing email from students collection if null
       phone: cleanPhone,
       branch,
       section,

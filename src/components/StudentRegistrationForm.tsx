@@ -318,12 +318,12 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         throw new Error("Please enter a valid 10-digit phone number.");
 
       // Create registration via server API (server validates and writes — no client Firestore writes)
+      // Email already verified during OTP step, so no need to include it here
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: studentInfo.name.trim(),
-          email: emailInput.trim(),
           phone: studentInfo.phone.trim(),
         }),
       });
@@ -650,18 +650,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
             />
           </div>
 
-          <div>
-            <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={emailInput}
-              className="input-field"
-              disabled
-              style={{ opacity: 0.6 }}
-            />
-          </div>
+          {/* Email already verified during OTP - no need to ask again */}
 
           <div>
             <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>
