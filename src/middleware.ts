@@ -13,14 +13,40 @@ const ADMIN_EMAILS = new Set(
 );
 
 // Allowed origins — loaded from env or defaults
+// PRODUCTION: Strictly locked to chem-event.netlify.app
+// DEVELOPMENT: Allow localhost for testing
+const getDefaultOrigins = () => {
+  if (process.env.NODE_ENV === "production") {
+    // Production: Only allow the specific Netlify domain
+    return "https://chem-event.netlify.app";
+  } else {
+    // Development: Allow localhost and local network
+    return "http://localhost:3000,http://localhost:3001,http://192.0.0.4:3000";
+  }
+};
+
 const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:3001,https://idealab.dfriendsclub.in")
+  (process.env.ALLOWED_ORIGINS || getDefaultOrigins())
     .split(",")
     .map((s) => s.trim())
 );
 
 function getOrigin(req: NextRequest): string | null {
   return req.headers.get("origin") || req.headers.get("referer")?.replace(/\/[^/]*$/, "") || null;
+}
+
+function isSameOriginRequest(req: NextRequest): boolean {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+
+  // If no origin header, it's likely a same-origin request or server-side
+  if (!origin) {
+    return true;
+  }
+
+  // Check if the origin matches the current host
+  const originHost = new URL(origin).hostname;
+  return originHost === host;
 }
 
 function getSecret(): Uint8Array {
@@ -79,6 +105,12 @@ export async function middleware(req: NextRequest) {
     const globalRl = rateLimit(ip, "global_api", 200, 60 * 60_000);
     if (!globalRl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
+    // Allow same-origin requests (admin panel calling its own API)
+    if (isSameOriginRequest(req)) {
+      // Same-origin requests are always allowed
+      return NextResponse.next();
     }
 
     const origin = getOrigin(req);

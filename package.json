@@ -10,7 +10,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest --runInBand --forceExit"
+    "test": "jest --runInBand --forceExit",
+    "test:cors": "node test-cors.js https://chem-event.netlify.app /api/events",
+    "test:cors:evil": "node test-cors.js https://evil.com /api/events",
+    "test:cors:dev": "node test-cors.js http://localhost:3000 /api/events",
+    "test:admin-api": "node test-admin-api.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

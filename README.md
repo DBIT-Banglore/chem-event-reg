@@ -11,6 +11,7 @@ Individual programme registration platform for DBIT students to register for Che
 
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
+- [Security & CORS](#security--cors)
 - [Auth Flow](#auth-flow)
 - [Student Flow](#student-flow)
 - [Admin Flow](#admin-flow)
@@ -43,13 +44,77 @@ Key constraints enforced by the platform:
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router, TypeScript) |
+| Framework | Next.js 16 (App Router, TypeScript) |
 | Database | Firebase Firestore |
 | Auth (client) | Firebase Auth — custom token |
 | Auth (server) | Firebase Admin SDK — server-side writes, batch ops |
 | Session | JWT via `jose` — HTTP-only cookie |
 | Email / OTP | Brevo Email API |
-| Deployment | Vercel |
+| Payment | Razorpay Payment Gateway |
+| Deployment | Netlify |
+| Security | Custom middleware with CORS & rate limiting |
+
+---
+
+## Security & CORS
+
+### 🔒 Production Security Lock
+
+The application implements strict **Cross-Origin Resource Sharing (CORS)** policies to prevent unauthorized access:
+
+- **Production Environment**: Only allows requests from `https://chem-event.netlify.app`
+- **Development Environment**: Allows localhost for testing (`http://localhost:3000`, `http://localhost:3001`, `http://192.0.0.4:3000`)
+
+### 🛡️ Security Features
+
+1. **CORS Protection**
+   - Middleware validates `Origin` header on all API requests
+   - Rejects requests from unauthorized domains with HTTP 403
+   - Supports preflight OPTIONS requests with proper CORS headers
+
+2. **Rate Limiting**
+   - Global API limit: 200 requests per hour per IP
+   - OTP sending: 5 requests per 15 minutes per IP
+   - USN lookup: 5 requests per minute, 30 per hour per IP
+
+3. **Security Headers**
+   - `X-Frame-Options: DENY` - Prevents clickjacking
+   - `X-Content-Type-Options: nosniff` - Prevents MIME sniffing
+   - `Strict-Transport-Security` - Enforces HTTPS
+   - `Content-Security-Policy` - Restricts resource loading
+   - `Permissions-Policy` - Blocks camera/microphone/geolocation access
+
+4. **Input Validation**
+   - USN format validation (alphanumeric, 6-12 characters)
+   - Email format validation with length restrictions
+   - Sanitization of all user inputs
+
+5. **Authentication**
+   - JWT-based session management with HTTP-only cookies
+   - Firebase Admin SDK for server-side operations
+   - Custom token issuance for client-side Firebase auth
+
+### 🔧 CORS Configuration
+
+CORS settings are configured in two places:
+
+1. **Next.js Middleware** (`src/middleware.ts`)
+   - Enforces origin validation at the application level
+   - Automatically switches between production/development origins
+
+2. **Netlify Configuration** (`netlify.toml`)
+   - Additional CORS headers for Netlify deployment
+   - Security headers for all routes
+
+### 📝 Custom CORS Origins
+
+To allow additional domains in production, set the `ALLOWED_ORIGINS` environment variable:
+
+```env
+ALLOWED_ORIGINS=https://chem-event.netlify.app,https://your-custom-domain.com
+```
+
+**⚠️ Security Warning**: Only add trusted domains to `ALLOWED_ORIGINS`. Each added domain can make API requests to your application.
 
 ---
 
@@ -159,32 +224,69 @@ registrationsOpen  boolean
 
 ## Environment Variables
 
-Copy `env.local` to `.env.local` and fill in all values before running the app.
+Copy `.env.example` to `.env.local` and fill in all required values.
 
 ```env
-# Firebase client config (public)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+# Firebase Configuration
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=your-firebase-client-email
+FIREBASE_PRIVATE_KEY=your-firebase-private-key
+FIREBASE_DATABASE_URL=your-firebase-database-url
 
-# Firebase Admin SDK (server-side only)
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
+# Firebase Client Config (public - prefix with NEXT_PUBLIC_)
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-firebase-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-firebase-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-firebase-app-id
 
-# Brevo — OTP email delivery
-BREVO_API_KEY=
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 
-# Session signing
-JWT_SECRET=
+# Email Service (Brevo)
+BREVO_API_KEY=your-brevo-api-key
+BREVO_SENDER_EMAIL=noreply@yourdomain.com
+# Optional: Multiple API keys for load balancing (comma-separated)
+# BREVO_KEYS=key1:sender1@mail.com,key2:sender2@mail.com
 
-# Access control
-ADMIN_EMAILS=           # Comma-separated. If empty, any Firebase user can access /admin.
-ALLOWED_ORIGINS=        # Comma-separated, e.g. http://localhost:3000,https://yourdomain.in
+# Razorpay Payment Gateway
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+
+# Admin Configuration
+ADMIN_EMAILS=admin1@domain.com,admin2@domain.com
+
+# CORS Configuration (Optional - defaults provided)
+# Production defaults to: https://chem-event.netlify.app
+# Development defaults to: http://localhost:3000,http://localhost:3001,http://192.0.0.4:3000
+# ALLOWED_ORIGINS=https://chem-event.netlify.app,https://your-custom-domain.com
+
+# Environment
+NODE_ENV=production
 ```
+
+### Required Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | ✅ | Your Firebase project ID |
+| `FIREBASE_CLIENT_EMAIL` | ✅ | Service account email for Firebase Admin |
+| `FIREBASE_PRIVATE_KEY` | ✅ | Service account private key for Firebase Admin |
+| `JWT_SECRET` | ✅ | Secret key for JWT signing (min 32 characters) |
+| `BREVO_API_KEY` | ✅ | API key for Brevo email service |
+| `BREVO_SENDER_EMAIL` | ✅ | Verified sender email for OTP emails |
+| `RAZORPAY_KEY_ID` | ✅ | Razorpay key ID for payments |
+| `RAZORPAY_KEY_SECRET` | ✅ | Razorpay key secret for payment verification |
+| `ADMIN_EMAILS` | ✅ | Comma-separated list of admin email addresses |
+
+### Optional Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `ALLOWED_ORIGINS` | Auto-detected | Comma-separated list of allowed CORS origins |
+| `BREVO_KEYS` | `BREVO_API_KEY` | Multiple Brevo API keys for load balancing |
+| `NODE_ENV` | `development` | Environment mode (`production` or `development`) |
 
 ---
 
