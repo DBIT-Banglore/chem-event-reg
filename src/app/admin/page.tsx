@@ -107,11 +107,7 @@ export default function AdminPage() {
         let unsubscribeFn: (() => void) | undefined;
 
         async function initAuth() {
-            // Sign out any lingering session (including old localStorage-persisted ones).
-            // Admin must log in on every fresh page visit.
-            try { await signOut(auth); } catch { /* ignore */ }
-
-            // Session-only persistence: auth token lives only for this browser session.
+            // Session-only persistence — token lives only for this browser tab/session.
             await setPersistence(auth, browserSessionPersistence).catch(() => {});
 
             unsubscribeFn = onAuthStateChanged(auth, (currentUser) => {
@@ -278,7 +274,6 @@ export default function AdminPage() {
     };
 
     const handleLogout = async () => {
-        await signOut(auth);
         setStudents([]);
         setEvents([]);
         setTeams([]);
@@ -286,6 +281,8 @@ export default function AdminPage() {
         setCsvStudentCount(0);
         setDataError("");
         setActiveTab("dashboard");
+        await signOut(auth);
+        // onAuthStateChanged fires next and sets user → null → login form shown
     };
 
     const handleResetDatabase = async () => {
