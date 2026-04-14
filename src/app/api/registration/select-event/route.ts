@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
         if (!ev1.isActive) throw Object.assign(new Error(`${ev1.name} is not available.`), { status: 400 });
         if (!ev2.isActive) throw Object.assign(new Error(`${ev2.name} is not available.`), { status: 400 });
 
+        if (ev1.eventType === "team") {
+          throw Object.assign(new Error("Team events cannot be selected as individual events. Use the team registration flow."), { status: 400 });
+        }
+        if (ev2.eventType === "team") {
+          throw Object.assign(new Error("Team events cannot be selected as individual events. Use the team registration flow."), { status: 400 });
+        }
+
         const prevEv1 = regData.eventId || null;
         const prevEv2 = regData.eventId2 || null;
         const isNewEv1 = prevEv1 !== eventId;
@@ -99,6 +106,7 @@ export async function POST(req: NextRequest) {
       if (!eventDoc.exists) throw Object.assign(new Error("Event not found"), { status: 404 });
       const eventData = eventDoc.data()!;
       if (!eventData.isActive) throw Object.assign(new Error("This event is not available."), { status: 400 });
+      if (eventData.eventType === "team") throw Object.assign(new Error("Team events cannot be selected as individual events."), { status: 400 });
 
       if (!regDoc.exists) throw Object.assign(new Error("Registration not found."), { status: 404 });
       const regData = regDoc.data()!;

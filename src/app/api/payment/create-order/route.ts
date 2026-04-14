@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
       const ev2 = ev2Doc.data()!;
       if (!ev1.isActive) return NextResponse.json({ error: `${ev1.name} is not available` }, { status: 400 });
       if (!ev2.isActive) return NextResponse.json({ error: `${ev2.name} is not available` }, { status: 400 });
+      if (ev1.eventType === "team") return NextResponse.json({ error: "Team events cannot be paid for individually. Use team payment." }, { status: 400 });
+      if (ev2.eventType === "team") return NextResponse.json({ error: "Team events cannot be paid for individually. Use team payment." }, { status: 400 });
       if ((ev1.registrationCount || 0) >= ev1.capacity) {
         return NextResponse.json({ error: `${ev1.name} is full` }, { status: 409 });
       }
@@ -123,6 +125,7 @@ export async function POST(req: NextRequest) {
     if (!eventDoc.exists) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     const event = eventDoc.data()!;
     if (!event.isActive) return NextResponse.json({ error: "Event is not available" }, { status: 400 });
+    if (event.eventType === "team") return NextResponse.json({ error: "Team events cannot be paid for individually. Use team payment." }, { status: 400 });
     if ((event.registrationCount || 0) >= event.capacity) {
       return NextResponse.json({ error: "Event is full" }, { status: 409 });
     }

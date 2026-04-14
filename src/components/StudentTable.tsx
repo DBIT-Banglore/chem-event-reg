@@ -20,6 +20,15 @@ interface Student {
     paymentStatus2?: string | null;
     paymentId2?: string | null;
     paymentAmount2?: number | null;
+    // Team event
+    teamEventId?: string | null;
+    teamEventName?: string | null;
+    teamId?: string | null;
+    teamName?: string | null;
+    teamRole?: string | null;
+    teamPaymentStatus?: string | null;
+    teamPaymentId?: string | null;
+    teamTotalAmount?: number | null;
 }
 
 interface StudentTableProps {
@@ -80,13 +89,16 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
         const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section",
             "Event 1", "Payment Status", "Transaction ID (Event 1)", "Amount Paid — Event 1",
             "Event 2", "Payment Status (Event 2)", "Transaction ID (Event 2)", "Amount Paid — Event 2",
-            "Total Amount Paid"];
+            "Total Amount Paid",
+            "Team Event", "Team Name", "Team Role", "Team Payment Status", "Team Transaction ID", "Team Amount Paid"];
 
         const rows = students.map((s, i) => [
             i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
             s.eventName || "", s.paymentStatus || "Free", s.paymentId || "", fmtAmt(s.paymentAmount),
             s.eventName2 || "", s.paymentStatus2 || (s.eventId2 ? "Free" : ""), s.paymentId2 || "", fmtAmt(s.paymentAmount2),
             fmtAmt((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)),
+            s.teamEventName || "", s.teamName || "", s.teamRole || "",
+            s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""), s.teamPaymentId || "", fmtAmt(s.teamTotalAmount),
         ]);
 
         const csvContent = [
@@ -105,7 +117,7 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
     const exportXLS = async () => {
         try {
             const { exportToXLS } = await import("@/lib/xlsExport");
-            const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid"];
+            const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid", "Team Amount Paid"];
             const rows = students.map((s, i) => ({
                 "#": i + 1,
                 "Name": s.name,
@@ -123,6 +135,12 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                 "Transaction ID (Event 2)": s.paymentId2 || "",
                 "Amount Paid — Event 2": s.paymentAmount2 ?? "",
                 "Total Amount Paid": ((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)) || "",
+                "Team Event": s.teamEventName || "",
+                "Team Name": s.teamName || "",
+                "Team Role": s.teamRole || "",
+                "Team Payment Status": s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""),
+                "Team Transaction ID": s.teamPaymentId || "",
+                "Team Amount Paid": s.teamTotalAmount ?? "",
             }));
             await exportToXLS([rows], ["All Registrations"], `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
         } catch {
@@ -185,7 +203,7 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                                 <td style={{ ...tdStyle, color: "var(--muted)" }} className="admin-hide-mobile">{student.section}</td>
                                 {showEventColumn && (
                                     <td style={{ ...tdStyle, fontSize: "12px" }} className="admin-hide-tablet">
-                                        {(student.eventName || student.eventId || student.eventName2 || student.eventId2) ? (
+                                        {(student.eventName || student.eventId || student.eventName2 || student.eventId2 || student.teamEventName || student.teamEventId) ? (
                                             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                                                 {(student.eventName || student.eventId) && (
                                                     <span className="badge badge-success">
@@ -195,6 +213,12 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                                                 {(student.eventName2 || student.eventId2) && (
                                                     <span className="badge badge-success">
                                                         {student.eventName2 || student.eventId2}
+                                                    </span>
+                                                )}
+                                                {(student.teamEventName || student.teamEventId) && (
+                                                    <span className="badge" style={{ background: "rgba(139,92,246,0.12)", color: "#7c3aed", border: "1px solid rgba(139,92,246,0.3)" }}>
+                                                        {student.teamEventName || student.teamEventId}
+                                                        {student.teamRole && <span style={{ opacity: 0.7, marginLeft: "4px" }}>({student.teamRole})</span>}
                                                     </span>
                                                 )}
                                             </div>

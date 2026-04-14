@@ -14,11 +14,12 @@ export async function GET(req: NextRequest) {
 
     const adminDb = getAdminFirestore();
 
-    const [studentsSnap, registrationsSnap] = await Promise.all([
+    const [studentsSnap, registrationsSnap, teamsSnap] = await Promise.all([
       adminDb.collection("students").get(),
       adminDb.collection("registrations").orderBy("registeredAt", "desc").get().catch(() =>
         adminDb.collection("registrations").orderBy("createdAt", "desc").get()
       ),
+      adminDb.collection("teams").get(),
     ]);
 
     const students = studentsSnap.docs.map((d) => {
@@ -33,11 +34,33 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Build teamId → team summary map for merging into registrations
+    const teamMap = new Map<string, {
+      teamName: string;
+      leaderUSN: string;
+      teamPaymentStatus: string | null;
+      teamPaymentId: string | null;
+      teamTotalAmount: number | null;
+    }>();
+    teamsSnap.docs.forEach((d) => {
+      const t = d.data();
+      teamMap.set(d.id, {
+        teamName: t.teamName || "",
+        leaderUSN: t.leaderUSN || "",
+        teamPaymentStatus: t.paymentStatus || null,
+        teamPaymentId: t.paymentId || null,
+        teamTotalAmount: t.totalAmount ?? null,
+      });
+    });
+
     const registrations = registrationsSnap.docs.map((d) => {
       const data = d.data();
+      const usn = data.usn || d.id;
+      const teamId = data.teamId || null;
+      const teamInfo = teamId ? teamMap.get(teamId) : null;
       return {
         name: data.name,
-        usn: data.usn,
+        usn,
         phone: data.phone,
         email: data.email || "",
         branch: data.branch,
@@ -50,6 +73,13 @@ export async function GET(req: NextRequest) {
         paymentStatus2: data.paymentStatus2 || null,
         paymentId2: data.paymentId2 || null,
         paymentAmount2: data.paymentAmount2 ?? null,
+        teamEventId: data.teamEventId || null,
+        teamId: teamId,
+        teamName: teamInfo?.teamName || null,
+        teamRole: teamInfo ? (teamInfo.leaderUSN === usn ? "Leader" : "Member") : null,
+        teamPaymentStatus: teamInfo?.teamPaymentStatus || null,
+        teamPaymentId: teamInfo?.teamPaymentId || null,
+        teamTotalAmount: teamInfo?.teamTotalAmount ?? null,
       };
     });
 
@@ -106,7 +136,17 @@ export async function DELETE(req: NextRequest) {
     await requireAdmin(idToken);
 
     const adminDb = getAdminFirestore();
-    await adminDb.collection("students").doc(usn).delete();
+
+    // Delete student record, registration, and any teams they lead
+    const [teamsSnap] = await Promise.all([
+      adminDb.collection("teams").where("leaderUSN", "==", usn).get(),
+    ]);
+
+    const batch = adminDb.batch();
+    batch.delete(adminDb.collection("students").doc(usn));
+    batch.delete(adminDb.collection("registrations").doc(usn));
+    teamsSnap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
 
     return NextResponse.json({ success: true });
   } catch (err) {

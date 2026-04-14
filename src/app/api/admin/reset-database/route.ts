@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
     await deleteCollection(adminDb, "registrations");
     deleted.push("registrations");
 
+    await deleteCollection(adminDb, "teams");
+    deleted.push("teams");
+
     await deleteCollection(adminDb, "notifications");
     deleted.push("notifications");
 

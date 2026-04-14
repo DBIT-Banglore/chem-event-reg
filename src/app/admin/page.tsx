@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { db, auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence, User } from "firebase/auth";
 import { collection, getDocs, query } from "firebase/firestore";
 import StudentTable from "@/components/StudentTable";
 import CSVUploader from "@/components/CSVUploader";
@@ -25,9 +25,17 @@ interface Student {
     paymentStatus2: string | null;
     paymentId2: string | null;
     paymentAmount2: number | null;
+    // Team event
+    teamEventId: string | null;
+    teamId: string | null;
+    teamName: string | null;
+    teamRole: string | null;
+    teamPaymentStatus: string | null;
+    teamPaymentId: string | null;
+    teamTotalAmount: number | null;
 }
 
-type TabType = "dashboard" | "students" | "registrations" | "events" | "settings";
+type TabType = "dashboard" | "students" | "registrations" | "events" | "teams" | "settings";
 
 export default function AdminPage() {
     const [user, setUser] = useState<User | null>(null);
@@ -40,6 +48,7 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<TabType>("dashboard");
     const [students, setStudents] = useState<Student[]>([]);
     const [dataLoading, setDataLoading] = useState(false);
+    const [dataError, setDataError] = useState("");
 
     // Reset Database States
     const [showResetModal, setShowResetModal] = useState(false);
@@ -59,20 +68,60 @@ export default function AdminPage() {
     const [csvStudentCount, setCsvStudentCount] = useState(0);
 
     // Event state
-    const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number; isActive: boolean}>>([]);
+    const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number; isActive: boolean; eventType?: string; teamSize?: number}>>([]);
     const [eventsLoading, setEventsLoading] = useState(false);
     const [showEventForm, setShowEventForm] = useState(false);
     const [editingEvent, setEditingEvent] = useState<string | null>(null);
-    const [eventForm, setEventForm] = useState({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true });
+    const [eventForm, setEventForm] = useState({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true, eventType: "individual", teamSize: "" });
     const [eventFormError, setEventFormError] = useState("");
     const [eventFormLoading, setEventFormLoading] = useState(false);
 
+    // Teams state
+    interface TeamRecord {
+        teamId: string;
+        teamName: string;
+        eventId: string;
+        eventName: string;
+        leaderUSN: string;
+        leaderName: string;
+        leaderEmail: string;
+        leaderPhone: string;
+        memberUSNs: string[];
+        memberNames: string[];
+        memberCount: number;
+        status: string;
+        otpVerificationStatus: Record<string, boolean>;
+        paymentId: string | null;
+        paymentStatus: string | null;
+        totalAmount: number | null;
+        createdAt: string | null;
+    }
+    const [teams, setTeams] = useState<TeamRecord[]>([]);
+    const [teamsLoading, setTeamsLoading] = useState(false);
+    const [teamsError, setTeamsError] = useState("");
+    const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+    const [teamActionLoading, setTeamActionLoading] = useState<string | null>(null);
+    const [addMemberInputs, setAddMemberInputs] = useState<Record<string, string>>({});
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            setAuthLoading(false);
-        });
-        return () => unsubscribe();
+        let unsubscribeFn: (() => void) | undefined;
+
+        async function initAuth() {
+            // Sign out any lingering session (including old localStorage-persisted ones).
+            // Admin must log in on every fresh page visit.
+            try { await signOut(auth); } catch { /* ignore */ }
+
+            // Session-only persistence: auth token lives only for this browser session.
+            await setPersistence(auth, browserSessionPersistence).catch(() => {});
+
+            unsubscribeFn = onAuthStateChanged(auth, (currentUser) => {
+                setUser(currentUser);
+                setAuthLoading(false);
+            });
+        }
+
+        initAuth();
+        return () => { if (unsubscribeFn) unsubscribeFn(); };
     }, []);
 
     const fetchConfig = useCallback(async () => {
@@ -106,6 +155,7 @@ export default function AdminPage() {
 
     const fetchStudents = useCallback(async () => {
         setDataLoading(true);
+        setDataError("");
         try {
             const currentUser = auth.currentUser;
             const idToken = currentUser ? await currentUser.getIdToken(true) : "";
@@ -114,6 +164,17 @@ export default function AdminPage() {
             });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ error: "Failed to fetch data" }));
+                if (res.status === 401) {
+                    await signOut(auth);
+                    setLoginError("Session expired. Please log in again.");
+                    return;
+                }
+                if (res.status === 403) {
+                    // Signed in with a non-admin account — kick back to login
+                    await signOut(auth);
+                    setLoginError("This account does not have admin access.");
+                    return;
+                }
                 throw new Error(errorData.error || "Failed to fetch data");
             }
             const result = await res.json();
@@ -128,14 +189,70 @@ export default function AdminPage() {
             await fetchEvents();
         } catch (error2) {
             console.error("Error fetching data:", error2);
+            setDataError(error2 instanceof Error ? error2.message : "Failed to load data");
         } finally {
             setDataLoading(false);
         }
     }, [fetchConfig, fetchEvents]);
 
+    const fetchTeams = useCallback(async () => {
+        setTeamsLoading(true);
+        setTeamsError("");
+        try {
+            const currentUser = auth.currentUser;
+            const idToken = currentUser ? await currentUser.getIdToken(true) : "";
+            const res = await fetch("/api/admin/teams", { headers: { "x-admin-token": idToken } });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Failed to fetch teams");
+            const data = await res.json();
+            setTeams(data.teams || []);
+        } catch (err) {
+            setTeamsError(err instanceof Error ? err.message : "Failed to load teams");
+        } finally {
+            setTeamsLoading(false);
+        }
+    }, []);
+
+    const teamAction = async (teamId: string, body: Record<string, unknown>) => {
+        setTeamActionLoading(teamId + (body.action as string));
+        try {
+            const idToken = auth.currentUser ? await auth.currentUser.getIdToken(true) : "";
+            const res = await fetch("/api/admin/teams", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "x-admin-token": idToken },
+                body: JSON.stringify({ teamId, ...body }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Action failed");
+            await fetchTeams();
+            return data;
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Action failed");
+        } finally {
+            setTeamActionLoading(null);
+        }
+    };
+
+    const deleteTeam = async (teamId: string, teamName: string) => {
+        if (!confirm(`Delete team "${teamName}"? This will remove all members from the team.`)) return;
+        setTeamActionLoading(teamId + "delete");
+        try {
+            const idToken = auth.currentUser ? await auth.currentUser.getIdToken(true) : "";
+            const res = await fetch(`/api/admin/teams?teamId=${teamId}`, {
+                method: "DELETE",
+                headers: { "x-admin-token": idToken },
+            });
+            if (!res.ok) throw new Error((await res.json()).error || "Delete failed");
+            await Promise.all([fetchTeams(), fetchStudents()]);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Delete failed");
+        } finally {
+            setTeamActionLoading(null);
+        }
+    };
+
     useEffect(() => {
-        if (user) fetchStudents();
-    }, [user, fetchStudents]);
+        if (user) { fetchStudents(); fetchTeams(); }
+    }, [user, fetchStudents, fetchTeams]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -143,8 +260,18 @@ export default function AdminPage() {
         setLoginError("");
         try {
             await signInWithEmailAndPassword(auth, email, password);
-        } catch {
-            setLoginError("Invalid email or password. Please try again.");
+        } catch (err: unknown) {
+            const code = (err as { code?: string })?.code ?? "";
+            const AUTH_ERRORS: Record<string, string> = {
+                "auth/invalid-email": "Invalid email address.",
+                "auth/user-not-found": "No account found with this email.",
+                "auth/wrong-password": "Incorrect password.",
+                "auth/invalid-credential": "Invalid email or password.",
+                "auth/too-many-requests": "Too many failed attempts. Try again later.",
+                "auth/network-request-failed": "Network error. Check your connection.",
+                "auth/user-disabled": "This account has been disabled.",
+            };
+            setLoginError(AUTH_ERRORS[code] || "Sign-in failed. Please try again.");
         } finally {
             setLoginLoading(false);
         }
@@ -153,6 +280,12 @@ export default function AdminPage() {
     const handleLogout = async () => {
         await signOut(auth);
         setStudents([]);
+        setEvents([]);
+        setTeams([]);
+        setCsvStudents([]);
+        setCsvStudentCount(0);
+        setDataError("");
+        setActiveTab("dashboard");
     };
 
     const handleResetDatabase = async () => {
@@ -235,6 +368,8 @@ export default function AdminPage() {
                 dateTime: eventForm.dateTime,
                 price: Number(eventForm.price) || 0,
                 isActive: eventForm.isActive,
+                eventType: eventForm.eventType,
+                ...(eventForm.eventType === "team" && { teamSize: Number(eventForm.teamSize) || null }),
             };
 
             let res;
@@ -256,7 +391,7 @@ export default function AdminPage() {
             if (!res.ok) throw new Error(data.error || "Failed to save event");
             setShowEventForm(false);
             setEditingEvent(null);
-            setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true });
+            setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true, eventType: "individual", teamSize: "" });
             await fetchEvents();
         } catch (err) {
             setEventFormError(err instanceof Error ? err.message : "Failed to save event");
@@ -321,11 +456,12 @@ export default function AdminPage() {
             ...s,
             eventName: s.eventId ? (eventMap.get(s.eventId) ?? null) : null,
             eventName2: s.eventId2 ? (eventMap.get(s.eventId2) ?? null) : null,
+            teamEventName: s.teamEventId ? (eventMap.get(s.teamEventId) ?? null) : null,
         }));
     }, [students, events]);
 
     // ─── Export Helpers ───
-    const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid", "Amount Paid"];
+    const amountKeys = ["Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid", "Amount Paid", "Team Amount Paid"];
 
     const makeAllRow = (s: typeof studentsWithEvents[0], serial: number) => ({
         "#": serial,
@@ -344,6 +480,12 @@ export default function AdminPage() {
         "Transaction ID (Event 2)": s.paymentId2 || "",
         "Amount Paid — Event 2": s.paymentAmount2 ?? "",
         "Total Amount Paid": ((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)) || "",
+        "Team Event": s.teamEventName || "",
+        "Team Name": s.teamName || "",
+        "Team Role": s.teamRole || "",
+        "Team Payment Status": s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""),
+        "Team Transaction ID": s.teamPaymentId || "",
+        "Team Amount Paid": s.teamTotalAmount ?? "",
     });
 
     const makeEventRow = (s: typeof studentsWithEvents[0], evName: string, slot: 1 | 2, serial: number) => ({
@@ -360,19 +502,41 @@ export default function AdminPage() {
         "Amount Paid": (slot === 1 ? s.paymentAmount : s.paymentAmount2) ?? "",
     });
 
+    const makeTeamEventRow = (s: typeof studentsWithEvents[0], evName: string, serial: number) => ({
+        "#": serial,
+        "Name": s.name,
+        "USN": s.usn,
+        "Email": s.email || "",
+        "Phone": s.phone,
+        "Branch": s.branch,
+        "Section": s.section,
+        "Event Name": evName,
+        "Team Name": s.teamName || "",
+        "Team Role": s.teamRole || "",
+        "Team Payment Status": s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""),
+        "Team Transaction ID": s.teamPaymentId || "",
+        "Team Amount Paid": s.teamTotalAmount ?? "",
+    });
+
     const handleExportAllXLS = async () => {
         const { exportToXLS } = await import("@/lib/xlsExport");
         const allRows = studentsWithEvents.map((s, i) => makeAllRow(s, i + 1));
         const sheets: Record<string, string | number | null | undefined>[][] = [allRows];
         const sheetNames = ["All Registrations"];
         events.forEach(ev => {
-            const slot1 = studentsWithEvents.filter(s => s.eventId === ev.eventId);
-            const slot2 = studentsWithEvents.filter(s => s.eventId2 === ev.eventId);
-            const combined = [
-                ...slot1.map((s, i) => makeEventRow(s, ev.name, 1, i + 1)),
-                ...slot2.map((s, i) => makeEventRow(s, ev.name, 2, slot1.length + i + 1)),
-            ];
-            sheets.push(combined);
+            if (ev.eventType === "team") {
+                const teamMembers = studentsWithEvents.filter(s => s.teamEventId === ev.eventId);
+                const combined = teamMembers.map((s, i) => makeTeamEventRow(s, ev.name, i + 1));
+                sheets.push(combined);
+            } else {
+                const slot1 = studentsWithEvents.filter(s => s.eventId === ev.eventId);
+                const slot2 = studentsWithEvents.filter(s => s.eventId2 === ev.eventId);
+                const combined = [
+                    ...slot1.map((s, i) => makeEventRow(s, ev.name, 1, i + 1)),
+                    ...slot2.map((s, i) => makeEventRow(s, ev.name, 2, slot1.length + i + 1)),
+                ];
+                sheets.push(combined);
+            }
             sheetNames.push(ev.name.slice(0, 31));
         });
         await exportToXLS(sheets, sheetNames, `idea-lab-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
@@ -398,33 +562,49 @@ export default function AdminPage() {
     const handleExportAllCSV = () => {
         const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section",
             "Event 1", "Payment Status", "Transaction ID (Event 1)", "Amount Paid — Event 1",
-            "Event 2", "Payment Status (Event 2)", "Transaction ID (Event 2)", "Amount Paid — Event 2", "Total Amount Paid"];
+            "Event 2", "Payment Status (Event 2)", "Transaction ID (Event 2)", "Amount Paid — Event 2", "Total Amount Paid",
+            "Team Event", "Team Name", "Team Role", "Team Payment Status", "Team Transaction ID", "Team Amount Paid"];
         const rows = studentsWithEvents.map((s, i) => [[
             i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section,
             s.eventName || "", s.paymentStatus || "Free", s.paymentId || "", formatAmtCsv(s.paymentAmount),
             s.eventName2 || "", s.paymentStatus2 || (s.eventId2 ? "Free" : ""), s.paymentId2 || "", formatAmtCsv(s.paymentAmount2),
             formatAmtCsv((s.paymentAmount ?? 0) + (s.paymentAmount2 ?? 0)),
+            s.teamEventName || "", s.teamName || "", s.teamRole || "",
+            s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""), s.teamPaymentId || "", formatAmtCsv(s.teamTotalAmount),
         ]]);
         downloadCSV(buildCSV(headers, rows), `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.csv`);
     };
 
-    const handleExportEventCSV = (eventId: string, eventName: string) => {
-        const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
-        const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
-        const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Slot", "Payment Status", "Transaction ID", "Amount Paid"];
-        const s1rows = slot1.map((s, i) => [[i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 1", s.paymentStatus || "Free", s.paymentId || "", formatAmtCsv(s.paymentAmount)]]);
-        const s2rows = slot2.map((s, i) => [[slot1.length + i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 2", s.paymentStatus2 || "Free", s.paymentId2 || "", formatAmtCsv(s.paymentAmount2)]]);
-        downloadCSV(buildCSV(headers, [...s1rows, ...s2rows]), `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`);
+    const handleExportEventCSV = (eventId: string, eventName: string, isTeamEvent = false) => {
+        if (isTeamEvent) {
+            const members = studentsWithEvents.filter(s => s.teamEventId === eventId);
+            const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Team Name", "Team Role", "Team Payment Status", "Team Transaction ID", "Team Amount Paid"];
+            const rows = members.map((s, i) => [[i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, s.teamName || "", s.teamRole || "", s.teamPaymentStatus || "Pending", s.teamPaymentId || "", formatAmtCsv(s.teamTotalAmount)]]);
+            downloadCSV(buildCSV(headers, rows), `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`);
+        } else {
+            const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
+            const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
+            const headers = ["#", "Name", "USN", "Email", "Phone", "Branch", "Section", "Event Name", "Slot", "Payment Status", "Transaction ID", "Amount Paid"];
+            const s1rows = slot1.map((s, i) => [[i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 1", s.paymentStatus || "Free", s.paymentId || "", formatAmtCsv(s.paymentAmount)]]);
+            const s2rows = slot2.map((s, i) => [[slot1.length + i + 1, s.name, s.usn, s.email || "", s.phone, s.branch, s.section, eventName, "Event 2", s.paymentStatus2 || "Free", s.paymentId2 || "", formatAmtCsv(s.paymentAmount2)]]);
+            downloadCSV(buildCSV(headers, [...s1rows, ...s2rows]), `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`);
+        }
     };
 
-    const handleExportEventXLS = async (eventId: string, eventName: string) => {
+    const handleExportEventXLS = async (eventId: string, eventName: string, isTeamEvent = false) => {
         const { exportToXLS } = await import("@/lib/xlsExport");
-        const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
-        const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
-        const rows = [
-            ...slot1.map((s, i) => makeEventRow(s, eventName, 1, i + 1)),
-            ...slot2.map((s, i) => makeEventRow(s, eventName, 2, slot1.length + i + 1)),
-        ];
+        let rows;
+        if (isTeamEvent) {
+            const members = studentsWithEvents.filter(s => s.teamEventId === eventId);
+            rows = members.map((s, i) => makeTeamEventRow(s, eventName, i + 1));
+        } else {
+            const slot1 = studentsWithEvents.filter(s => s.eventId === eventId);
+            const slot2 = studentsWithEvents.filter(s => s.eventId2 === eventId);
+            rows = [
+                ...slot1.map((s, i) => makeEventRow(s, eventName, 1, i + 1)),
+                ...slot2.map((s, i) => makeEventRow(s, eventName, 2, slot1.length + i + 1)),
+            ];
+        }
         await exportToXLS([rows], [eventName.slice(0, 31)], `${eventName.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
     };
 
@@ -480,6 +660,7 @@ export default function AdminPage() {
         { id: "dashboard", label: "Overview", icon: <LayoutDashboard style={{ width: 22, height: 22 }} /> },
         { id: "students", label: "Students", icon: <Database style={{ width: 22, height: 22 }} /> },
         { id: "registrations", label: "Registrations", icon: <Users style={{ width: 22, height: 22 }} /> },
+        { id: "teams", label: "Teams", icon: <Users style={{ width: 22, height: 22 }} /> },
         { id: "events", label: "Events", icon: <CalendarDays style={{ width: 22, height: 22 }} /> },
         { id: "settings", label: "Settings", icon: <Settings style={{ width: 22, height: 22 }} /> }
     ];
@@ -603,6 +784,13 @@ export default function AdminPage() {
                             <p className="admin-section-sub">Loading Data...</p>
                         </div>
                     </div>
+                ) : dataError ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+                        <div style={{ textAlign: "center", maxWidth: 400 }}>
+                            <p style={{ color: "var(--red)", fontWeight: 700, marginBottom: 12 }}>{dataError}</p>
+                            <button className="btn-primary" onClick={() => fetchStudents()}>Retry</button>
+                        </div>
+                    </div>
                 ) : (
                     <div className="admin-inner fade-in-up">
 
@@ -716,6 +904,51 @@ export default function AdminPage() {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* ── Export Section ── */}
+                                <div className="admin-card" style={{ padding: "20px 24px" }}>
+                                    <h3 style={{ fontFamily: "var(--bebas)", fontSize: "18px", letterSpacing: "0.06em", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <Download style={{ width: 17, height: 17, color: "var(--red)" }} /> Export Data
+                                    </h3>
+
+                                    {/* All Registrations */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "10px", padding: "10px 14px", background: "var(--paper2)", border: "1.5px solid var(--ink)" }}>
+                                        <span style={{ fontSize: "11px", fontWeight: 800, flex: 1, minWidth: "120px", textTransform: "uppercase", letterSpacing: "0.08em" }}>All Registrations</span>
+                                        <button onClick={handleExportAllCSV} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "7px 14px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                            <Download style={{ width: 11, height: 11 }} /> CSV
+                                        </button>
+                                        <button onClick={handleExportAllXLS} className="btn-primary" style={{ fontSize: "10px", fontWeight: 800, padding: "7px 14px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                            <FileSpreadsheet style={{ width: 11, height: 11 }} /> Excel (All Sheets)
+                                        </button>
+                                    </div>
+
+                                    {/* Per-event rows */}
+                                    {events.length > 0 && (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                            {events.map((ev) => {
+                                                const isTeam = ev.eventType === "team";
+                                                const count = isTeam
+                                                    ? studentsWithEvents.filter(s => s.teamEventId === ev.eventId).length
+                                                    : studentsWithEvents.filter(s => s.eventId === ev.eventId || s.eventId2 === ev.eventId).length;
+                                                return (
+                                                    <div key={ev.eventId} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "8px 14px", border: "1.5px solid var(--line)" }}>
+                                                        <span style={{ fontSize: "11px", fontWeight: 600, flex: 1, minWidth: "120px" }}>
+                                                            {ev.name}
+                                                            {isTeam && <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", marginLeft: "6px", padding: "2px 6px", border: "1px solid #7c3aed" }}>Team</span>}
+                                                            <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 400, marginLeft: "6px" }}>{count} student{count !== 1 ? "s" : ""}</span>
+                                                        </span>
+                                                        <button onClick={() => handleExportEventCSV(ev.eventId, ev.name, isTeam)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                            <Download style={{ width: 11, height: 11 }} /> CSV
+                                                        </button>
+                                                        <button onClick={() => handleExportEventXLS(ev.eventId, ev.name, isTeam)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                            <FileSpreadsheet style={{ width: 11, height: 11 }} /> XLS
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             </>
                         )}
 
@@ -795,15 +1028,22 @@ export default function AdminPage() {
                                             <CalendarDays style={{ width: 18, height: 18, color: "var(--red)" }} /> Event Summary
                                         </h3>
                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "24px" }}>
-                                            {events.map((ev) => (
-                                                <div key={ev.eventId} style={{ border: "1.5px solid var(--line)", padding: "12px 16px", background: "var(--paper2)", minWidth: "140px" }}>
-                                                    <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px", lineHeight: 1.3 }}>{ev.name}</p>
-                                                    <p style={{ fontFamily: "var(--bebas)", fontSize: "26px", letterSpacing: "0.02em", lineHeight: 1, color: "var(--ink)" }}>
-                                                        {studentsWithEvents.filter(s => s.eventId === ev.eventId).length}
-                                                    </p>
-                                                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginTop: "2px" }}>registered</p>
-                                                </div>
-                                            ))}
+                                            {events.map((ev) => {
+                                                const isTeam = ev.eventType === "team";
+                                                const count = isTeam
+                                                    ? studentsWithEvents.filter(s => s.teamEventId === ev.eventId).length
+                                                    : studentsWithEvents.filter(s => s.eventId === ev.eventId).length;
+                                                return (
+                                                    <div key={ev.eventId} style={{ border: "1.5px solid var(--line)", padding: "12px 16px", background: "var(--paper2)", minWidth: "140px" }}>
+                                                        <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px", lineHeight: 1.3 }}>{ev.name}</p>
+                                                        {isTeam && <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: "4px" }}>Team Event</p>}
+                                                        <p style={{ fontFamily: "var(--bebas)", fontSize: "26px", letterSpacing: "0.02em", lineHeight: 1, color: "var(--ink)" }}>
+                                                            {count}
+                                                        </p>
+                                                        <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginTop: "2px" }}>registered</p>
+                                                    </div>
+                                                );
+                                            })}
                                             <div style={{ border: "1.5px dashed var(--line)", padding: "12px 16px", background: "transparent", minWidth: "140px" }}>
                                                 <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px", color: "var(--muted)" }}>No Event</p>
                                                 <p style={{ fontFamily: "var(--bebas)", fontSize: "26px", letterSpacing: "0.02em", lineHeight: 1, color: "var(--muted)" }}>
@@ -831,17 +1071,21 @@ export default function AdminPage() {
                                             {/* Per-event rows */}
                                             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                                                 {events.map((ev) => {
-                                                    const count = studentsWithEvents.filter(s => s.eventId === ev.eventId || s.eventId2 === ev.eventId).length;
+                                                    const isTeam = ev.eventType === "team";
+                                                    const count = isTeam
+                                                        ? studentsWithEvents.filter(s => s.teamEventId === ev.eventId).length
+                                                        : studentsWithEvents.filter(s => s.eventId === ev.eventId || s.eventId2 === ev.eventId).length;
                                                     return (
                                                         <div key={ev.eventId} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "8px 14px", border: "1.5px solid var(--line)" }}>
                                                             <span style={{ fontSize: "11px", fontWeight: 600, flex: 1, minWidth: "120px" }}>
                                                                 {ev.name}
+                                                                {isTeam && <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginLeft: "6px", background: "var(--paper2)", padding: "2px 6px", border: "1px solid var(--line)" }}>Team</span>}
                                                                 <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 400, marginLeft: "6px" }}>{count} student{count !== 1 ? "s" : ""}</span>
                                                             </span>
-                                                            <button onClick={() => handleExportEventCSV(ev.eventId, ev.name)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                            <button onClick={() => handleExportEventCSV(ev.eventId, ev.name, isTeam)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
                                                                 <Download style={{ width: 11, height: 11 }} /> CSV
                                                             </button>
-                                                            <button onClick={() => handleExportEventXLS(ev.eventId, ev.name)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                                            <button onClick={() => handleExportEventXLS(ev.eventId, ev.name, isTeam)} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "6px 12px", display: "flex", alignItems: "center", gap: "5px" }}>
                                                                 <FileSpreadsheet style={{ width: 11, height: 11 }} /> XLS
                                                             </button>
                                                         </div>
@@ -867,7 +1111,7 @@ export default function AdminPage() {
                                         <p className="admin-section-sub">{events.length} Event{events.length !== 1 ? "s" : ""} · {events.filter(e => e.isActive).length} Active</p>
                                     </div>
                                     <button
-                                        onClick={() => { setShowEventForm(true); setEditingEvent(null); setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true }); setEventFormError(""); }}
+                                        onClick={() => { setShowEventForm(true); setEditingEvent(null); setEventForm({ name: "", description: "", capacity: "", dateTime: "", price: "0", isActive: true, eventType: "individual", teamSize: "" }); setEventFormError(""); }}
                                         className="btn-primary"
                                         style={{ fontSize: "10px", fontWeight: 800, padding: "10px 20px", display: "flex", alignItems: "center", gap: "6px" }}
                                     >
@@ -909,6 +1153,48 @@ export default function AdminPage() {
                                                     </div>
                                                     {Number(eventForm.price) === 0 && <span style={{ fontSize: "10px", color: "#16a34a", fontWeight: 700, marginTop: "4px", display: "inline-flex", alignItems: "center", gap: "4px" }}><CheckCircle2 style={{ width: 11, height: 11 }} /> FREE event</span>}
                                                 </div>
+                                                <div>
+                                                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>Event Type *</label>
+                                                    <div style={{ display: "flex", gap: "16px" }}>
+                                                        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                                                            <input
+                                                                type="radio"
+                                                                name="eventType"
+                                                                value="individual"
+                                                                checked={eventForm.eventType === "individual"}
+                                                                onChange={(e) => setEventForm(f => ({...f, eventType: e.target.value}))}
+                                                                style={{ width: 16, height: 16, cursor: "pointer" }}
+                                                            />
+                                                            Individual Event
+                                                        </label>
+                                                        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                                                            <input
+                                                                type="radio"
+                                                                name="eventType"
+                                                                value="team"
+                                                                checked={eventForm.eventType === "team"}
+                                                                onChange={(e) => setEventForm(f => ({...f, eventType: e.target.value, teamSize: "" }))}
+                                                                style={{ width: 16, height: 16, cursor: "pointer" }}
+                                                            />
+                                                            Team Event
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                {eventForm.eventType === "team" && (
+                                                    <div>
+                                                        <label style={{ display: "block", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--muted)", marginBottom: "8px" }}>Team Size *</label>
+                                                        <input
+                                                            type="number"
+                                                            value={eventForm.teamSize}
+                                                            onChange={(e) => setEventForm(f => ({...f, teamSize: e.target.value}))}
+                                                            className="input-field"
+                                                            min={2}
+                                                            max={10}
+                                                            required
+                                                            placeholder="e.g. 3"
+                                                        />
+                                                    </div>
+                                                )}
                                                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                                     <input type="checkbox" id="isActive" checked={eventForm.isActive} onChange={e => setEventForm(f => ({...f, isActive: e.target.checked}))} style={{ width: 16, height: 16, cursor: "pointer" }} />
                                                     <label htmlFor="isActive" style={{ fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Active (visible to students)</label>
@@ -979,7 +1265,7 @@ export default function AdminPage() {
                                                         </div>
                                                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                                                             <button
-                                                                onClick={() => { setEditingEvent(ev.eventId); setEventForm({ name: ev.name, description: ev.description, capacity: String(ev.capacity), dateTime: ev.dateTime, price: String(ev.price ?? 0), isActive: ev.isActive }); setShowEventForm(true); setEventFormError(""); }}
+                                                                onClick={() => { setEditingEvent(ev.eventId); setEventForm({ name: ev.name, description: ev.description, capacity: String(ev.capacity), dateTime: ev.dateTime, price: String(ev.price ?? 0), isActive: ev.isActive, eventType: (ev as unknown as Record<string, unknown>).eventType as string || "individual", teamSize: String((ev as unknown as Record<string, unknown>).teamSize || "") }); setShowEventForm(true); setEventFormError(""); }}
                                                                 className="btn-secondary"
                                                                 style={{ fontSize: "10px", padding: "7px 14px" }}
                                                             >
@@ -1004,6 +1290,217 @@ export default function AdminPage() {
                                             );
                                         })}
                                     </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* ── Teams Tab ── */}
+                        {activeTab === "teams" && (
+                            <>
+                                <header style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: "16px" }}>
+                                    <div>
+                                        <h1 className="admin-section-title">TEAMS</h1>
+                                        <p className="admin-section-sub">
+                                            {teams.length} Team{teams.length !== 1 ? "s" : ""}
+                                            {" · "}
+                                            {teams.filter(t => t.status === "paid" || t.status === "complete").length} Paid
+                                        </p>
+                                    </div>
+                                    <button onClick={fetchTeams} className="btn-secondary" style={{ fontSize: "10px", fontWeight: 800, padding: "8px 16px" }}>
+                                        ↻ Refresh
+                                    </button>
+                                </header>
+
+                                {teamsLoading ? (
+                                    <div style={{ textAlign: "center", padding: "48px 0" }}>
+                                        <div className="spinner" style={{ width: 36, height: 36, margin: "0 auto" }} />
+                                    </div>
+                                ) : teamsError ? (
+                                    <div className="admin-card" style={{ borderColor: "var(--red)", padding: "24px" }}>
+                                        <p style={{ color: "var(--red)", fontWeight: 700, fontSize: "13px" }}>{teamsError}</p>
+                                    </div>
+                                ) : teams.length === 0 ? (
+                                    <div className="admin-card" style={{ textAlign: "center", padding: "48px 24px" }}>
+                                        <Users style={{ width: 40, height: 40, color: "var(--muted)", margin: "0 auto 16px" }} />
+                                        <p style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)" }}>No teams yet</p>
+                                    </div>
+                                ) : (
+                                    (() => {
+                                        // group by event
+                                        const byEvent = teams.reduce<Record<string, typeof teams>>((acc, t) => {
+                                            const evName = t.eventName || t.eventId;
+                                            if (!acc[evName]) acc[evName] = [];
+                                            acc[evName].push(t);
+                                            return acc;
+                                        }, {});
+                                        return (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+                                                {Object.entries(byEvent).map(([evName, evTeams]) => (
+                                                    <div key={evName}>
+                                                        <h2 style={{ fontFamily: "var(--bebas)", fontSize: "18px", letterSpacing: "0.06em", color: "var(--muted)", marginBottom: "12px", paddingBottom: "6px", borderBottom: "1.5px solid var(--line)" }}>
+                                                            {evName} — {evTeams.length} team{evTeams.length !== 1 ? "s" : ""}
+                                                        </h2>
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                                            {evTeams.map(team => {
+                                                                const isExpanded = expandedTeam === team.teamId;
+                                                                const statusColors: Record<string, string> = {
+                                                                    pending: "#f59e0b", verified: "#3b82f6", paid: "#10b981", complete: "#10b981", cancelled: "#ef4444"
+                                                                };
+                                                                const statusColor = statusColors[team.status] || "#6b7280";
+                                                                return (
+                                                                    <div key={team.teamId} className="admin-card" style={{ padding: 0, overflow: "hidden" }}>
+                                                                        {/* Team header row */}
+                                                                        <div
+                                                                            style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "14px 18px", cursor: "pointer", background: "var(--paper2)", borderBottom: isExpanded ? "1.5px solid var(--line)" : "none" }}
+                                                                            onClick={() => setExpandedTeam(isExpanded ? null : team.teamId)}
+                                                                        >
+                                                                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                                                                <Users style={{ width: 16, height: 16, color: "#7c3aed", flexShrink: 0 }} />
+                                                                                <div>
+                                                                                    <p style={{ fontFamily: "var(--bebas)", fontSize: "17px", letterSpacing: "0.04em", lineHeight: 1 }}>{team.teamName}</p>
+                                                                                    <p style={{ fontFamily: "monospace", fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>
+                                                                                        Leader: {team.leaderUSN} · {team.memberUSNs.length + 1} member{team.memberUSNs.length !== 0 ? "s" : ""}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                                                <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "3px 8px", background: statusColor, color: "#fff" }}>
+                                                                                    {team.status}
+                                                                                </span>
+                                                                                {team.totalAmount != null && (
+                                                                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#16a34a" }}>₹{team.totalAmount}</span>
+                                                                                )}
+                                                                                <span style={{ fontSize: "14px", color: "var(--muted)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Expanded detail */}
+                                                                        {isExpanded && (
+                                                                            <div style={{ padding: "18px" }}>
+                                                                                {/* Info row */}
+                                                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "24px", marginBottom: "18px", fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
+                                                                                    {team.paymentId && <span>Txn: <span style={{ fontFamily: "monospace", color: "var(--ink)" }}>{team.paymentId}</span></span>}
+                                                                                    {team.createdAt && <span>Created: {new Date(team.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                                                                                </div>
+
+                                                                                {/* Members list */}
+                                                                                <div style={{ marginBottom: "18px" }}>
+                                                                                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted)", marginBottom: "10px" }}>Members</p>
+                                                                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                                                                        {/* Leader */}
+                                                                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--paper2)", border: "1px solid var(--line)" }}>
+                                                                                            <div>
+                                                                                                <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>{team.leaderUSN}</span>
+                                                                                                {team.leaderName && <span style={{ fontSize: "11px", color: "var(--muted)", marginLeft: "8px" }}>{team.leaderName}</span>}
+                                                                                                <span style={{ marginLeft: "8px", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "#7c3aed", color: "#fff" }}>Leader</span>
+                                                                                                {team.otpVerificationStatus[team.leaderUSN] && (
+                                                                                                    <span style={{ marginLeft: "6px", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "#10b981", color: "#fff" }}>Verified</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {/* Members */}
+                                                                                        {team.memberUSNs.map((usn, idx) => (
+                                                                                            <div key={usn} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--paper2)", border: "1px solid var(--line)" }}>
+                                                                                                <div>
+                                                                                                    <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>{usn}</span>
+                                                                                                    {team.memberNames[idx] && <span style={{ fontSize: "11px", color: "var(--muted)", marginLeft: "8px" }}>{team.memberNames[idx]}</span>}
+                                                                                                    {team.otpVerificationStatus[usn] ? (
+                                                                                                        <span style={{ marginLeft: "6px", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "#10b981", color: "#fff" }}>Verified</span>
+                                                                                                    ) : (
+                                                                                                        <span style={{ marginLeft: "6px", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "#f59e0b", color: "#fff" }}>Pending OTP</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                <button
+                                                                                                    disabled={teamActionLoading === team.teamId + "remove-member"}
+                                                                                                    onClick={() => teamAction(team.teamId, { action: "remove-member", memberUSN: usn })}
+                                                                                                    style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", border: "1.5px solid #ef4444", background: "transparent", color: "#ef4444", cursor: "pointer", fontFamily: "var(--body)" }}
+                                                                                                    title="Remove member"
+                                                                                                >
+                                                                                                    ✕ Remove
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {/* Add member */}
+                                                                                <div style={{ display: "flex", gap: "8px", marginBottom: "18px", flexWrap: "wrap" }}>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder="USN to add"
+                                                                                        value={addMemberInputs[team.teamId] || ""}
+                                                                                        onChange={e => setAddMemberInputs(prev => ({ ...prev, [team.teamId]: e.target.value.toUpperCase() }))}
+                                                                                        style={{ flex: 1, minWidth: "140px", padding: "8px 12px", border: "1.5px solid var(--line)", background: "var(--paper2)", fontFamily: "monospace", fontSize: "12px", color: "var(--ink)" }}
+                                                                                    />
+                                                                                    <button
+                                                                                        disabled={!addMemberInputs[team.teamId] || teamActionLoading === team.teamId + "add-member"}
+                                                                                        onClick={async () => {
+                                                                                            await teamAction(team.teamId, { action: "add-member", memberUSN: addMemberInputs[team.teamId] });
+                                                                                            setAddMemberInputs(prev => ({ ...prev, [team.teamId]: "" }));
+                                                                                        }}
+                                                                                        className="btn-primary"
+                                                                                        style={{ fontSize: "10px", fontWeight: 800, padding: "8px 16px" }}
+                                                                                    >
+                                                                                        + Add Member
+                                                                                    </button>
+                                                                                </div>
+
+                                                                                {/* Actions row */}
+                                                                                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "14px", borderTop: "1.5px solid var(--line)" }}>
+                                                                                    <div style={{ flex: 1, minWidth: "160px" }}>
+                                                                                        <label style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", display: "block", marginBottom: "4px" }}>Status</label>
+                                                                                        <select
+                                                                                            value={team.status}
+                                                                                            onChange={e => teamAction(team.teamId, { action: "set-status", status: e.target.value })}
+                                                                                            disabled={!!teamActionLoading}
+                                                                                            style={{ padding: "8px 12px", border: "1.5px solid var(--line)", background: "var(--paper2)", fontSize: "12px", fontWeight: 700, fontFamily: "var(--body)", color: "var(--ink)", width: "100%" }}
+                                                                                        >
+                                                                                            {["pending", "verified", "paid", "complete", "cancelled"].map(s => (
+                                                                                                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                                                                            ))}
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div style={{ flex: 1, minWidth: "160px" }}>
+                                                                                        <label style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", display: "block", marginBottom: "4px" }}>Team Name</label>
+                                                                                        <div style={{ display: "flex", gap: "6px" }}>
+                                                                                            <input
+                                                                                                id={`team-name-${team.teamId}`}
+                                                                                                defaultValue={team.teamName}
+                                                                                                style={{ flex: 1, padding: "8px 12px", border: "1.5px solid var(--line)", background: "var(--paper2)", fontSize: "12px", fontFamily: "var(--body)", color: "var(--ink)" }}
+                                                                                            />
+                                                                                            <button
+                                                                                                disabled={!!teamActionLoading}
+                                                                                                onClick={() => {
+                                                                                                    const el = document.getElementById(`team-name-${team.teamId}`) as HTMLInputElement;
+                                                                                                    if (el?.value) teamAction(team.teamId, { action: "update-name", teamName: el.value });
+                                                                                                }}
+                                                                                                style={{ padding: "8px 12px", border: "1.5px solid var(--line)", background: "var(--paper2)", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--body)", color: "var(--ink)" }}
+                                                                                            >
+                                                                                                Save
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div style={{ display: "flex", alignItems: "flex-end" }}>
+                                                                                        <button
+                                                                                            disabled={teamActionLoading === team.teamId + "delete"}
+                                                                                            onClick={() => deleteTeam(team.teamId, team.teamName)}
+                                                                                            style={{ padding: "8px 16px", border: "1.5px solid #ef4444", background: "transparent", color: "#ef4444", fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", fontFamily: "var(--body)" }}
+                                                                                        >
+                                                                                            🗑 Delete Team
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()
                                 )}
                             </>
                         )}

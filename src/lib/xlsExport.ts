@@ -75,6 +75,13 @@ function columnWidth(key: string): number {
     "Event Name": 26,
     "Transaction ID": 28,
     "Amount Paid": 16,
+    "Team Event": 26,
+    "Team Name": 22,
+    "Team Role": 12,
+    "Team Payment Status": 20,
+    "Team Transaction ID": 28,
+    "Team Amount Paid": 18,
+    "Slot": 10,
   };
   return widths[key] ?? Math.max(key.length + 4, 14);
 }

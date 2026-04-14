@@ -34,6 +34,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Teams — members and leaders can read their own team; all writes via server API
+    match /teams/{teamId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.leaderUSN ||
+         resource.data.memberUSNs.hasAny([request.auth.uid]));
+      allow write: if false;
+    }
+
     // OTP codes — server-only (admin SDK); deny all client access
     match /otp_codes/{doc} {
       allow read, write: if false;
