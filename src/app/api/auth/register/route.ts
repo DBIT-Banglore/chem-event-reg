@@ -95,11 +95,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Verify the email matches what's in the student database (if stored)
-    const storedEmail = studentDoc.exists ? studentDoc.data()?.email : null;
-    if (storedEmail && storedEmail.trim().toLowerCase() !== cleanEmail) {
-      return NextResponse.json({ error: "Email does not match our records." }, { status: 400 });
-    }
+    // Email was already verified via OTP — use stored email if none was submitted
+    const storedEmail: string | null = studentDoc.exists ? (studentDoc.data()?.email ?? null) : null;
+    const resolvedEmail = cleanEmail ?? storedEmail;
 
     const branch = studentDoc.data()?.branch || getBranchName(usn);
     const section = studentDoc.data()?.section || getSection(usn);
@@ -108,7 +106,7 @@ export async function POST(req: NextRequest) {
     await db.collection("registrations").doc(usn).set({
       name: cleanName,
       usn,
-      email: cleanEmail, // Will use existing email from students collection if null
+      email: resolvedEmail,
       phone: cleanPhone,
       branch,
       section,
@@ -119,7 +117,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       alreadyRegistered: false,
-      user: { usn, name: cleanName, email: cleanEmail, branch, section, eventId: null },
+      user: { usn, name: cleanName, email: resolvedEmail, branch, section, eventId: null },
     });
   } catch (err) {
     console.error("[auth/register]", err);

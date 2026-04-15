@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
           price: data.price ?? 0,
           registrationCount: data.registrationCount || 0,
           isActive: data.isActive,
+          eventType: data.eventType || "individual",
+          teamSize: data.teamSize || null,
         };
       })
       .filter((e) => e.isActive)

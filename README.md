@@ -158,6 +158,37 @@ Dashboard protected by SessionGuard + middleware JWT check
 - **Change Event** button (visible only while registrations are open).
 - Event picker modal listing all active events with available capacity.
 
+**Team Events:**
+- Students can register for **1 individual event + 1 team event** (instead of 2 individual events)
+- Team registration requires team leader to enter all team members' USNs
+- OTPs are sent to all team members for verification
+- Team leader pays for all team members once all OTPs are verified
+- Team status tracker shows verification progress for each member
+- Team member list shows individual verification status and actions
+
+---
+
+## Team Events Feature
+
+### Team Event Registration Flow
+
+1. **Team Creation:** Team leader selects a team-based event and enters team name
+2. **Team Members:** Leader enters USNs of all team members (excluding themselves as leader)
+3. **Validation:** System validates all USNs exist in student database and team size matches event requirements
+4. **OTP Verification:** OTPs are sent to all team members (including leader) via email
+5. **Member Verification:** Each team member must verify their OTP within 24 hours
+6. **Payment:** Once all members verified, team leader proceeds to payment for the entire team
+7. **Completion:** After successful payment, all team members are registered for the event
+
+### Team Event Rules
+
+- **Team Size:** Set by admin when creating team events (2-10 members)
+- **Capacity:** Team registration counts as multiple slots based on team size
+- **Verification:** All team members must verify OTPs within 24 hours
+- **Payment:** Team leader pays total amount (event price × team size)
+- **Security:** Team members cannot be in multiple teams for same event
+- **Cancellation:** Teams can be cancelled if not all members verified within 24 hours
+
 ---
 
 ## Admin Flow
@@ -169,14 +200,28 @@ The admin panel has five tabs:
 | Tab | Purpose |
 |---|---|
 | **Dashboard** | Registration count, event stats, top events |
-| **Events** | Create, edit, toggle active/inactive, delete events |
+| **Events** | Create, edit, toggle active/inactive, delete events (individual + team) |
 | **Students** | Student table with event column, search and filter |
 | **Settings** | Open/close registrations, upload student CSV, reset database |
 | **Export** | Download all registrations as CSV or XLS |
 
-**Event fields:** `name`, `description`, `capacity`, `dateTime`, `isActive`
+**Event fields:** `name`, `description`, `capacity`, `dateTime`, `isActive`, `eventType` (`individual` | `team`), `teamSize` (for team events, 2-10 members)
 
 > An event can only be deleted if it has **zero registrations**.
+
+### Team Event Management
+
+**Creating Team Events:**
+- Select event type: "Individual" or "Team"
+- For team events, specify team size (2-10 members)
+- Team events show different capacity indicators (team-based counting)
+- Admin can view all registered teams and their verification status
+
+**Team Event Rules:**
+- Team size must match admin-specified requirements
+- All team members must verify OTPs within 24 hours
+- Payment is per team, not per individual member
+- Team leader pays total amount for entire team
 
 ---
 
@@ -187,6 +232,90 @@ The admin panel has five tabs:
 ```
 eventId          string      // EVT-<timestamp>
 name             string
+description      string
+capacity         number
+dateTime         string      // ISO 8601 datetime
+price            number       // Entry fee in INR; 0 = free
+registrationCount number
+isActive         boolean
+eventType         string      // "individual" | "team" (default: "individual")
+teamSize         number       // Required for team events (2-10 members)
+createdAt        Timestamp
+updatedAt        Timestamp
+```
+
+### `teams/{teamId}`
+
+```
+teamId             string     // TEAM-<timestamp>
+teamName           string
+eventId            string     // Reference to team event
+leaderUSN          string     // Team leader's USN
+leaderName         string     // Team leader's name
+leaderEmail        string     // Team leader's email
+leaderPhone        string     // Team leader's phone
+memberUSNs         string[]   // Array of all team member USNs (including leader)
+memberCount        number     // Total team members
+status             string     // "pending" | "verified" | "paid" | "complete" | "cancelled"
+createdAt          Timestamp
+updatedAt          Timestamp
+otpVerificationStatus  Record<string, boolean>  // USN -> verified status
+paymentId          string     // Razorpay payment ID (after payment)
+paymentStatus      string     // "free" | "paid" | "pending"
+totalAmount        number     // Total payment amount (price × team size)
+```
+
+### `registrations/{usn}`
+
+```
+usn              string
+name             string
+email            string
+phone            string
+branch           string
+section          string
+eventId           string | null       // Individual event
+eventId2          string | null      // Second individual event
+teamEventId      string | null      // Team event participation
+teamId           string | null      // Team reference
+paymentId        string | null
+paymentStatus     "free" | "paid" | "pending" | null
+paymentId2       string | null
+paymentStatus2   "free" | "paid" | "pending" | null
+orderId2         string | null
+registeredAt      Timestamp
+updatedAt         Timestamp
+```
+
+### `students/{usn}`
+
+Populated by admin CSV upload. Read-only for client sessions.
+
+### `config/global_config`
+
+```
+registrationsOpen  boolean
+csvLastUploadedAt Timestamp
+```
+
+### `otp_codes/{otpId}`
+
+```
+email            string
+otp              string     // 6-digit verification code
+expiresAt        number     // Unix timestamp (10 min expiry)
+used             boolean
+attempts         number     // Verification attempt count
+createdAt         number     // Unix timestamp
+teamId           string     // Optional: team ID for team context
+```
+
+> **Security Notes:**
+- **Students collection:** NO client access (server-side only)
+- **Registrations:** Read own data only, NO client writes
+- **Events:** Public read, admin writes only  
+- **Teams:** Server access only (admin SDK)
+- **OTP codes:** NO client access (admin SDK only)
 description      string
 capacity         number
 dateTime         string      // ISO 8601 datetime

@@ -9,7 +9,7 @@ import { setSession } from "@/lib/session";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, PencilLine, Lock, Loader2, Mail, ShieldCheck, RotateCcw, CalendarDays, AlertCircle } from "lucide-react";
 
-type Step = "usn" | "otp" | "register" | "event" | "event2";
+type Step = "usn" | "otp" | "register" | "event";
 
 export default function StudentRegistrationForm({ redirectTo, onRegistered, prefillOtp }: { redirectTo?: string; onRegistered?: () => void; prefillOtp?: string } = {}) {
   const router = useRouter();
@@ -47,11 +47,9 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
   const [csvNotFound, setCsvNotFound] = useState(false);
 
   // Event selection state
-  const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number}>>([]);
+  const [events, setEvents] = useState<Array<{eventId: string; name: string; description: string; capacity: number; dateTime: string; price: number; registrationCount: number; eventType?: string}>>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [confirmedEventId, setConfirmedEventId] = useState<string | null>(null); // slot 1 confirmed
-  const [selectedEvent2Id, setSelectedEvent2Id] = useState<string | null>(null);
   const [eventSubmitting, setEventSubmitting] = useState(false);
   const [eventError, setEventError] = useState("");
 
@@ -126,7 +124,8 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
     try {
       const res = await fetch("/api/events");
       const data = await res.json();
-      setEvents(data.events || []);
+      // Exclude team events — those are handled separately in the dashboard
+      setEvents((data.events || []).filter((e: { eventType?: string }) => e.eventType !== "team"));
     } catch {
       setEvents([]);
     } finally {
@@ -428,7 +427,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
           { key: "usn", label: "USN" },
           { key: "otp", label: "Verify" },
           { key: "register", label: "Register" },
-          { key: "event", label: "Event" },
+          { key: "event", label: "Ind. Event" },
         ].map(({ key, label }, i) => {
           const isActive = step === key;
           const isDone =
@@ -744,8 +743,14 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
           </div>
 
           <div>
-            <h3 style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.04em", marginBottom: "4px" }}>Select Your Event (1 of 2)</h3>
-            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Choose your first event. You can optionally add a second event in the next step.</p>
+            <h3 style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.04em", marginBottom: "4px" }}>Select Your Individual Event (1 of 2)</h3>
+            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "12px" }}>Choose your first event. You can optionally add a second event in the next step.</p>
+            <div style={{ padding: "10px 14px", background: "rgba(232,52,26,0.06)", border: "1.5px solid var(--red)", fontSize: "12px", color: "var(--ink)", lineHeight: 1.6, marginBottom: "16px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>
+                <strong>Want to join a team event?</strong> Team events are registered separately from your <strong>dashboard</strong> after completing registration here.
+              </span>
+            </div>
           </div>
 
           {eventsLoading ? (
@@ -804,169 +809,51 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
             </div>
           )}
 
-          <button
-            type="button"
-            disabled={!selectedEventId || eventSubmitting}
-            onClick={() => {
-              if (!selectedEventId) return;
-              setConfirmedEventId(selectedEventId);
-              setSelectedEvent2Id(null);
-              setEventError("");
-              setStep("event2");
-            }}
-            className="btn-primary w-full"
-            style={{ padding: "16px" }}
-          >
-            <><CalendarDays style={{ width: 20, height: 20 }} /> Continue — Choose 2nd Event or Skip</>
-          </button>
-
-          {events.length > 0 && (
-            <div style={{ textAlign: "center" }}>
-              <button
-                type="button"
-                onClick={() => { window.location.href = redirectTo || "/dashboard"; }}
-                style={{ background: "none", border: "none", fontSize: "12px", color: "var(--muted)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}
-              >
-                Skip for now — select from dashboard
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Event 2 Selection + Combined Checkout — Step 5 */}
-      {step === "event2" && (
-        <div className="fade-in-up space-y-4">
-          {/* Event 1 summary */}
-          {(() => {
-            const ev1 = events.find(e => e.eventId === confirmedEventId);
-            return ev1 ? (
-              <div style={{ padding: "12px 16px", background: "var(--paper2)", border: "1.5px solid var(--ink)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <div>
-                  <p style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: "2px" }}>Event 1 Selected</p>
-                  <p style={{ fontWeight: 700, fontSize: "14px" }}>{ev1.name}</p>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: "13px", color: (ev1.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
-                  {(ev1.price ?? 0) === 0 ? "Free" : `₹${ev1.price}`}
-                </span>
-              </div>
-            ) : null;
-          })()}
-
-          <div>
-            <h3 style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.04em", marginBottom: "4px" }}>Add a 2nd Event (Optional)</h3>
-            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>Select a second event or skip. If both events require payment, the total will be charged in one transaction.</p>
-          </div>
-
-          {eventsLoading ? (
-            <div style={{ textAlign: "center", padding: "24px 0" }}>
-              <div className="spinner mx-auto" style={{ width: 28, height: 28 }} />
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {events.filter(ev => ev.eventId !== confirmedEventId).map((ev) => {
-                const isFull = ev.registrationCount >= ev.capacity;
-                const isSelected = selectedEvent2Id === ev.eventId;
-                return (
-                  <button
-                    key={ev.eventId}
-                    type="button"
-                    onClick={() => !isFull && setSelectedEvent2Id(isSelected ? null : ev.eventId)}
-                    disabled={isFull}
-                    style={{
-                      textAlign: "left", padding: "14px 18px", width: "100%",
-                      border: `1.5px solid ${isSelected ? "var(--ink)" : "var(--line)"}`,
-                      background: isSelected ? "var(--paper2)" : "transparent",
-                      cursor: isFull ? "not-allowed" : "pointer",
-                      opacity: isFull ? 0.5 : 1,
-                      fontFamily: "var(--body)",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--ink)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
-                          {ev.name}
-                          {isFull && <span style={{ fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 6px", background: "var(--muted)", color: "#fff" }}>Full</span>}
-                          <span style={{ fontSize: "10px", fontWeight: 700, color: (ev.price ?? 0) === 0 ? "#16a34a" : "#2563eb" }}>
-                            {(ev.price ?? 0) === 0 ? "Free" : `₹${ev.price}`}
-                          </span>
-                        </div>
-                        {ev.description && <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.5, marginBottom: "4px" }}>{ev.description}</p>}
-                        <p style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
-                          {new Date(ev.dateTime).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} · {ev.registrationCount}/{ev.capacity} registered
-                        </p>
-                      </div>
-                      {isSelected && <CheckCircle2 style={{ width: 18, height: 18, color: "var(--ink)", flexShrink: 0 }} />}
-                    </div>
-                  </button>
-                );
-              })}
-              {events.filter(ev => ev.eventId !== confirmedEventId).length === 0 && (
-                <div style={{ padding: "24px", textAlign: "center", border: "1.5px dashed var(--line)", color: "var(--muted)", fontSize: "13px" }}>
-                  No other events available.
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Price summary */}
           {(() => {
-            const ev1 = events.find(e => e.eventId === confirmedEventId);
-            const ev2 = events.find(e => e.eventId === selectedEvent2Id);
-            const total = (ev1?.price ?? 0) + (ev2?.price ?? 0);
-            if (!ev1) return null;
+            const ev = events.find(e => e.eventId === selectedEventId);
+            if (!ev) return null;
             return (
               <div style={{ padding: "12px 16px", border: "1.5px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--paper2)" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>
-                  {ev2 ? "Total for 2 events" : "Total for 1 event"}
-                </span>
-                <span style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em", color: total === 0 ? "#16a34a" : "var(--ink)" }}>
-                  {total === 0 ? "FREE" : `₹${total}`}
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>Total</span>
+                <span style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em", color: (ev.price ?? 0) === 0 ? "#16a34a" : "var(--ink)" }}>
+                  {(ev.price ?? 0) === 0 ? "FREE" : `₹${ev.price}`}
                 </span>
               </div>
             );
           })()}
 
-          {eventError && (
-            <div style={{ padding: "10px 12px", fontSize: "12px", fontWeight: 600, background: "rgba(232,52,26,0.08)", color: "var(--red)", border: "1.5px solid var(--red)", display: "flex", alignItems: "center", gap: "8px" }}>
-              <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} /> {eventError}
-            </div>
-          )}
-
-          {/* Combined checkout button */}
           <button
             type="button"
-            disabled={!confirmedEventId || eventSubmitting}
+            disabled={!selectedEventId || eventSubmitting}
             onClick={async () => {
-              if (!confirmedEventId) return;
+              if (!selectedEventId) return;
               setEventSubmitting(true);
               setEventError("");
-              const ev2Id = selectedEvent2Id || null;
               try {
                 const orderRes = await fetch("/api/payment/create-order", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ eventId: confirmedEventId, eventId2: ev2Id }),
+                  body: JSON.stringify({ eventId: selectedEventId }),
                 });
                 const orderData = await orderRes.json();
                 if (!orderRes.ok) throw new Error(orderData.error || "Failed to initiate");
 
                 if (orderData.free) {
-                  // All events free — confirm directly
                   const res = await fetch("/api/registration/select-event", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ eventId: confirmedEventId, eventId2: ev2Id }),
+                    body: JSON.stringify({ eventId: selectedEventId }),
                   });
                   const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || "Failed to confirm events");
+                  if (!res.ok) throw new Error(data.error || "Failed to confirm event");
                   const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
-                  localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: confirmedEventId, ...(ev2Id ? { eventId2: ev2Id } : {}) }));
+                  localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
                   window.location.href = redirectTo || "/dashboard";
                   return;
                 }
 
-                // Payment required — open Razorpay with combined total
+                // Payment required
                 await new Promise<void>((resolveScript, rejectScript) => {
                   if ((window as unknown as Record<string, unknown>).Razorpay) { resolveScript(); return; }
                   let tries = 0;
@@ -980,17 +867,14 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
                   }, 100);
                 });
 
-                const ev1 = events.find(e => e.eventId === confirmedEventId);
-                const ev2 = ev2Id ? events.find(e => e.eventId === ev2Id) : null;
-                const descLabel = ev2 ? `${ev1?.name ?? "Event 1"} + ${ev2.name}` : (ev1?.name ?? "Event");
-
+                const ev = events.find(e => e.eventId === selectedEventId);
                 await new Promise<void>((resolve, reject) => {
                   const options = {
                     key: orderData.keyId,
                     amount: orderData.amount,
                     currency: orderData.currency,
                     name: "DBIT Chemistry Dept",
-                    description: descLabel,
+                    description: ev?.name ?? "Event Registration",
                     order_id: orderData.orderId,
                     handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
                       try {
@@ -1001,14 +885,13 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            eventId: confirmedEventId,
-                            eventId2: ev2Id,
+                            eventId: selectedEventId,
                           }),
                         });
                         const verifyData = await verifyRes.json();
                         if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
                         const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
-                        localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: confirmedEventId, ...(ev2Id ? { eventId2: ev2Id } : {}) }));
+                        localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
                         resolve();
                         window.location.href = redirectTo || "/dashboard";
                       } catch (err) { reject(err); }
@@ -1030,24 +913,25 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
           >
             {eventSubmitting ? (
               <><div className="spinner" /> Processing...</>
-            ) : selectedEvent2Id ? (
-              <><CalendarDays style={{ width: 20, height: 20 }} /> Confirm &amp; Pay for Both Events</>
             ) : (
-              <><CalendarDays style={{ width: 20, height: 20 }} /> Confirm Event &amp; Go to Dashboard</>
+              <><CalendarDays style={{ width: 20, height: 20 }} /> Confirm &amp; Continue</>
             )}
           </button>
 
-          <div style={{ textAlign: "center" }}>
-            <button
-              type="button"
-              onClick={() => setStep("event")}
-              style={{ background: "none", border: "none", fontSize: "12px", color: "var(--muted)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}
-            >
-              ← Change Event 1
-            </button>
-          </div>
+          {events.length > 0 && (
+            <div style={{ textAlign: "center" }}>
+              <button
+                type="button"
+                onClick={() => { window.location.href = redirectTo || "/dashboard"; }}
+                style={{ background: "none", border: "none", fontSize: "12px", color: "var(--muted)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "3px" }}
+              >
+                Skip for now — select from dashboard
+              </button>
+            </div>
+          )}
         </div>
       )}
+
     </form>
   );
 }

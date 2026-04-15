@@ -5,15 +5,9 @@ interface AdminError extends Error {
   statusCode?: number;
 }
 
-const ADMIN_EMAILS = new Set(
-  (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-);
-
 /**
- * Verifies the Firebase ID token AND confirms the caller's email is in ADMIN_EMAILS.
+ * Verifies the Firebase ID token AND confirms the caller has the
+ * `admin: true` custom claim set in Firebase Authentication.
  * Throws with statusCode 401 on an invalid token and 403 if the user is not an admin.
  */
 export async function requireAdmin(idToken: string): Promise<void> {
@@ -26,8 +20,7 @@ export async function requireAdmin(idToken: string): Promise<void> {
     throw err;
   }
 
-  const email = (decoded.email ?? "").toLowerCase();
-  if (ADMIN_EMAILS.size === 0 || !ADMIN_EMAILS.has(email)) {
+  if (!decoded.admin) {
     const err = new Error("Forbidden: admin access required") as AdminError;
     err.statusCode = 403;
     throw err;

@@ -40,7 +40,7 @@ function RegisterContent() {
           <div style={{ fontSize: "13px" }}>
             <p style={{ fontWeight: 700, color: "var(--ink)", marginBottom: "4px" }}>How it works</p>
             <p style={{ color: "var(--muted)" }}>
-              Register with your USN, verify your email, then select the event or theme you want to participate in. No team needed — this is individual participation!
+              Register with your USN, verify your email, then select your individual event. You can also join a <strong style={{ color: "var(--ink)" }}>team event</strong> from your dashboard after registering.
             </p>
           </div>
         </div>
