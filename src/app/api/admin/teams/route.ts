@@ -100,7 +100,7 @@ export async function PUT(req: NextRequest) {
 
     // ── Remove a member ──────────────────────────────────────────────────────
     if (action === "remove-member") {
-      const { usn } = body;
+      const usn = body.memberUSN || body.usn;
       if (!usn) return NextResponse.json({ error: "USN required" }, { status: 400 });
       if (usn === team.leaderUSN) {
         return NextResponse.json({ error: "Cannot remove team leader. Delete the team instead." }, { status: 400 });
@@ -138,7 +138,7 @@ export async function PUT(req: NextRequest) {
 
     // ── Add a member ─────────────────────────────────────────────────────────
     if (action === "add-member") {
-      const { usn } = body;
+      const usn = body.memberUSN || body.usn;
       if (!usn) return NextResponse.json({ error: "USN required" }, { status: 400 });
       const cleanUSN = (usn as string).trim().toUpperCase();
 
