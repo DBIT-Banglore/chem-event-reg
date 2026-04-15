@@ -92,26 +92,22 @@ export async function middleware(req: NextRequest) {
 
   // ── API origin checking ─────────────────────────────────────────────────
   if (pathname.startsWith("/api")) {
-    // Global rate limit: 100 requests per hour per IP (reduced for security)
     const ip = getClientIP(req);
-    const globalRl = rateLimit(ip, "global_api", 100, 60 * 60_000);
-    if (!globalRl.allowed) {
-      return addSecurityHeaders(NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 }));
-    }
 
-    // STRICT RATE LIMITING for authentication endpoints
-    if (pathname.startsWith("/api/auth")) {
-      const authRl = rateLimit(ip, "auth_api", 20, 15 * 60_000); // 20 requests per 15 minutes
-      if (!authRl.allowed) {
-        return addSecurityHeaders(NextResponse.json({ error: "Too many authentication attempts. Please try again later." }, { status: 429 }));
+    // Skip rate limiting entirely for admin endpoints — protected by Firebase custom claim
+    if (!pathname.startsWith("/api/admin")) {
+      // Global rate limit: 100 requests per hour per IP
+      const globalRl = rateLimit(ip, "global_api", 100, 60 * 60_000);
+      if (!globalRl.allowed) {
+        return addSecurityHeaders(NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 }));
       }
-    }
 
-    // STRICT RATE LIMITING for admin endpoints
-    if (pathname.startsWith("/api/admin")) {
-      const adminRl = rateLimit(ip, "admin_api", 10, 5 * 60_000); // 10 requests per 5 minutes
-      if (!adminRl.allowed) {
-        return addSecurityHeaders(NextResponse.json({ error: "Too many admin requests. Please try again later." }, { status: 429 }));
+      // Stricter limit for auth endpoints
+      if (pathname.startsWith("/api/auth")) {
+        const authRl = rateLimit(ip, "auth_api", 20, 15 * 60_000);
+        if (!authRl.allowed) {
+          return addSecurityHeaders(NextResponse.json({ error: "Too many authentication attempts. Please try again later." }, { status: 429 }));
+        }
       }
     }
 

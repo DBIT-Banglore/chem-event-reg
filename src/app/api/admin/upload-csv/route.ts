@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { requireAdmin, adminErrStatus } from "@/lib/admin-auth";
 import { FieldValue } from "firebase-admin/firestore";
-import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
 const MAX_STUDENTS = 5000;
 
@@ -14,13 +13,6 @@ export async function POST(req: NextRequest) {
     }
 
     await requireAdmin(idToken);
-
-    // Rate limit: 3 uploads per hour per IP (destructive operation)
-    const ip = getClientIP(req);
-    const rl = rateLimit(ip, "admin-upload-csv", 3, 60 * 60 * 1000);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "Too many upload attempts. Try again later." }, { status: 429 });
-    }
 
     if (students.length > MAX_STUDENTS) {
       return NextResponse.json({ error: `Max ${MAX_STUDENTS} students per upload` }, { status: 400 });
