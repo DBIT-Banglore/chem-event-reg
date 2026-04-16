@@ -1,5 +1,5 @@
 {
-  "name": "idea-lab",
+  "name": "ideathon",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand --forceExit",
-    "test:cors": "node test-cors.js https://chem-event.netlify.app /api/events",
+    "test:cors": "node test-cors.js https://ideathon.dfriendsclub.in /api/events",
     "test:cors:evil": "node test-cors.js https://evil.com /api/events",
     "test:cors:dev": "node test-cors.js http://localhost:3000 /api/events",
     "test:admin-api": "node test-admin-api.js"

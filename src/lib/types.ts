@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript interfaces for Idea Lab Platform
+ * Shared TypeScript interfaces for IDEATHON Platform
  */
 
 // CSV-imported master student data

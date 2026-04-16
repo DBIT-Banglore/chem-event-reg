@@ -536,7 +536,7 @@ export default function AdminPage() {
             }
             sheetNames.push(ev.name.slice(0, 31));
         });
-        await exportToXLS(sheets, sheetNames, `idea-lab-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
+        await exportToXLS(sheets, sheetNames, `ideathon-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
     };
 
     const formatAmtCsv = (v: number | null | undefined): string =>
@@ -569,7 +569,7 @@ export default function AdminPage() {
             s.teamEventName || "", s.teamName || "", s.teamRole || "",
             s.teamPaymentStatus || (s.teamEventId ? "Pending" : ""), s.teamPaymentId || "", formatAmtCsv(s.teamTotalAmount),
         ]]);
-        downloadCSV(buildCSV(headers, rows), `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.csv`);
+        downloadCSV(buildCSV(headers, rows), `ideathon-all-registrations-${new Date().toISOString().split("T")[0]}.csv`);
     };
 
     const handleExportEventCSV = (eventId: string, eventName: string, isTeamEvent = false) => {
@@ -672,7 +672,7 @@ export default function AdminPage() {
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Lightbulb style={{ width: 16, height: 16, color: "var(--paper)" }} />
                     </div>
-                    <span className="admin-sidebar-logo-text" style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em" }}>IDEA LAB</span>
+                    <span className="admin-sidebar-logo-text" style={{ fontFamily: "var(--bebas)", fontSize: "20px", letterSpacing: "0.04em" }}>IDEATHON</span>
                 </div>
 
                 <div style={{ padding: "12px 8px", display: "flex", flexDirection: "column", gap: "2px", flex: 1 }}>
@@ -741,7 +741,7 @@ export default function AdminPage() {
                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Lightbulb style={{ width: 14, height: 14, color: "var(--paper)" }} />
                         </div>
-                        <span style={{ fontFamily: "var(--bebas)", fontSize: "16px" }}>IDEA LAB</span>
+                        <span style={{ fontFamily: "var(--bebas)", fontSize: "16px" }}>IDEATHON</span>
                     </div>
                     <button onClick={handleLogout} style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--red)", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.08em" }}>Sign Out</button>
                 </div>

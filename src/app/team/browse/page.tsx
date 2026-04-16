@@ -45,7 +45,7 @@ export default function BrowseTeamsPage() {
             marginBottom: "2rem",
           }}
         >
-          Idea Lab operates on an <strong>individual basis</strong> — there are
+          IDEATHON operates on an <strong>individual basis</strong> — there are
           no team slots to browse. Each student registers independently and can
           participate in up to <strong>2 events</strong>. Head to your dashboard
           to view or update your event selection.
@@ -95,7 +95,7 @@ export default function BrowseTeamsPage() {
           color: "var(--muted)",
         }}
       >
-        Idea Lab &mdash; DBIT Bangalore
+        IDEATHON &mdash; Chemistry Dept, DBIT Bangalore
       </p>
     </main>
   );

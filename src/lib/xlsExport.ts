@@ -102,7 +102,7 @@ export async function exportToXLS(
   amountKeys: string[] = ["Amount Paid (₹)", "Amount Paid", "Amount Paid — Event 1", "Amount Paid — Event 2", "Total Amount Paid"],
 ): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Idea Lab — DBIT Bangalore";
+  wb.creator = "IDEATHON — Chemistry Dept, DBIT Bangalore";
   wb.created = new Date();
 
   for (let si = 0; si < data.length; si++) {
@@ -120,7 +120,7 @@ export async function exportToXLS(
     const keys = Object.keys(rows[0]);
 
     // ── title row ──────────────────────────────────────────────────────────
-    const titleRow = ws.addRow([`Idea Lab — ${sheetName}   |   DBIT Bangalore   |   Exported: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`]);
+    const titleRow = ws.addRow([`IDEATHON — ${sheetName}   |   DBIT Bangalore   |   Exported: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`]);
     ws.mergeCells(1, 1, 1, keys.length);
     applyTitleRowStyle(titleRow.getCell(1));
     titleRow.height = 26;

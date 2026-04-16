@@ -34,7 +34,7 @@ export default function Navbar() {
             <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
           </svg>
         </div>
-        Idea Lab
+        IDEATHON
       </Link>
       <div className="nav-right">
         {session ? (

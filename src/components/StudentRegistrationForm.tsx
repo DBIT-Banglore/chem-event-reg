@@ -409,7 +409,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
         </div>
         <h3 style={{ fontFamily: "var(--bebas)", fontSize: "28px", color: "var(--ink)" }}>Registrations Closed</h3>
         <p style={{ color: "var(--muted)", fontSize: "14px", maxWidth: "320px", margin: "0 auto", lineHeight: 1.7 }}>
-          The registration window for <strong style={{ color: "var(--ink)" }}>Idea Lab</strong> is currently closed.
+          The registration window for <strong style={{ color: "var(--ink)" }}>IDEATHON</strong> is currently closed.
         </p>
       </div>
     );
@@ -847,8 +847,8 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
                   });
                   const data = await res.json();
                   if (!res.ok) throw new Error(data.error || "Failed to confirm event");
-                  const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
-                  localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
+                  const existing = JSON.parse(localStorage.getItem("ideathon_session") || "{}");
+                  localStorage.setItem("ideathon_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
                   window.location.href = redirectTo || "/dashboard";
                   return;
                 }
@@ -873,7 +873,7 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
                     key: orderData.keyId,
                     amount: orderData.amount,
                     currency: orderData.currency,
-                    name: "DBIT Chemistry Dept",
+                    name: "IDEATHON — DBIT",
                     description: ev?.name ?? "Event Registration",
                     order_id: orderData.orderId,
                     handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
@@ -890,8 +890,8 @@ export default function StudentRegistrationForm({ redirectTo, onRegistered, pref
                         });
                         const verifyData = await verifyRes.json();
                         if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
-                        const existing = JSON.parse(localStorage.getItem("idealab_session") || "{}");
-                        localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
+                        const existing = JSON.parse(localStorage.getItem("ideathon_session") || "{}");
+                        localStorage.setItem("ideathon_session", JSON.stringify({ ...existing, eventId: selectedEventId }));
                         resolve();
                         window.location.href = redirectTo || "/dashboard";
                       } catch (err) { reject(err); }

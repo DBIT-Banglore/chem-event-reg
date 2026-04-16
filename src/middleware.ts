@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 
-const COOKIE_NAME = "idealab_token";
+const COOKIE_NAME = "ideathon_token";
 
 // Allowed origins — STRICT MODE: Only production and specific local development
 const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || "https://idealab.dfriendsclub.in,https://chem-event.netlify.app")
+  (process.env.ALLOWED_ORIGINS || "https://ideathon.dfriendsclub.in")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)

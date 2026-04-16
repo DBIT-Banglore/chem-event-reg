@@ -109,7 +109,7 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
         const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.csv`;
+        link.download = `ideathon-all-registrations-${new Date().toISOString().split("T")[0]}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     };
@@ -142,7 +142,7 @@ export default function StudentTable({ students, showEventColumn = true }: Stude
                 "Team Transaction ID": s.teamPaymentId || "",
                 "Team Amount Paid": s.teamTotalAmount ?? "",
             }));
-            await exportToXLS([rows], ["All Registrations"], `idea-lab-all-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
+            await exportToXLS([rows], ["All Registrations"], `ideathon-all-registrations-${new Date().toISOString().split("T")[0]}.xlsx`, amountKeys);
         } catch {
             exportCSV();
         }

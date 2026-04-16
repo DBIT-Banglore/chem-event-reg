@@ -9,7 +9,7 @@ import { SessionData } from "./types";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 
-const SESSION_KEY = "idealab_session";
+const SESSION_KEY = "ideathon_session";
 
 // ── localStorage session (UI data cache) ──────────────────────────────────
 

@@ -25,7 +25,7 @@ function RegisterContent() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 style={{ fontFamily: "var(--bebas)", fontSize: "42px", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "8px" }}>
-            Join Idea Lab
+            Join IDEATHON
           </h1>
           <p style={{ color: "var(--muted)", fontSize: "14px" }}>
             Enter your USN to register. Your details will be auto-filled from the student database.

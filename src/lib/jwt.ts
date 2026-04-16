@@ -2,12 +2,12 @@
  * JWT Session Management — Server-side only
  *
  * Uses `jose` (HS256) for Edge-compatible JWT signing/verification.
- * Cookie name: idealab_token
+ * Cookie name: ideathon_token
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-export const COOKIE_NAME = "idealab_token";
+export const COOKIE_NAME = "ideathon_token";
 
 export interface SessionJWTPayload extends JWTPayload {
   usn: string;

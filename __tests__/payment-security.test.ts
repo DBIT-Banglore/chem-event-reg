@@ -66,7 +66,7 @@ jest.mock("@/lib/firebase-admin", () => ({
 }));
 
 jest.mock("@/lib/jwt", () => ({
-  COOKIE_NAME: "idealab_token",
+  COOKIE_NAME: "ideathon_token",
   getSessionFromRequest: jest.fn(),
   signSessionJWT: jest.fn(),
   verifySessionJWT: jest.fn(),

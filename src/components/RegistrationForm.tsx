@@ -179,13 +179,13 @@ export default function RegistrationForm() {
 
                         <div className="grid grid-cols-2 gap-3 mt-4">
                             <button type="button" onClick={() => {
-                                const text = `Hi, I've registered us for Idea Lab! Join my team using this code: ${submitResult.pairCode}\n\nLink: https://idealab-seven.vercel.app/join?code=${submitResult.pairCode}`;
+                                const text = `Hi, I've registered us for IDEATHON! Join my team using this code: ${submitResult.pairCode}\n\nLink: https://ideathon.dfriendsclub.in/join?code=${submitResult.pairCode}`;
                                 navigator.clipboard.writeText(text);
                                 alert("Copied to clipboard!");
                             }} className="btn-secondary w-full text-sm">
                                 <Copy className="w-4 h-4 flex-shrink-0" /> Copy Link
                             </button>
-                            <a href={`https://wa.me/?text=${encodeURIComponent(`Hi, I've registered us for Idea Lab! Join my team using this code: ${submitResult.pairCode}\n\nJoin Link: https://idealab-seven.vercel.app/join?code=${submitResult.pairCode}`)}`}
+                            <a href={`https://wa.me/?text=${encodeURIComponent(`Hi, I've registered us for IDEATHON! Join my team using this code: ${submitResult.pairCode}\n\nJoin Link: https://ideathon.dfriendsclub.in/join?code=${submitResult.pairCode}`)}`}
                                target="_blank" rel="noopener noreferrer"
                                className="btn-primary w-full text-sm"
                                style={{ background: "#25D366", color: "#fff" }}>
@@ -212,7 +212,7 @@ export default function RegistrationForm() {
                 </div>
                 <h3 style={{ fontFamily: "var(--bebas)", fontSize: "28px", color: "var(--ink)" }}>Registrations Closed</h3>
                 <p style={{ color: "var(--muted)", fontSize: "14px", maxWidth: "320px", margin: "0 auto", lineHeight: 1.7 }}>
-                    The registration window for <strong style={{ color: "var(--ink)" }}>Idea Lab</strong> is currently closed.
+                    The registration window for <strong style={{ color: "var(--ink)" }}>IDEATHON</strong> is currently closed.
                     Please check back later or contact your department admin.
                 </p>
             </div>

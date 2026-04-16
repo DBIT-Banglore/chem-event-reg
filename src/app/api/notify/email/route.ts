@@ -41,7 +41,7 @@ async function sendWithBrevo(
         "api-key": cred.apiKey,
       },
       body: JSON.stringify({
-        sender: { name: "Idea Lab — DBIT", email: cred.senderEmail },
+        sender: { name: "IDEATHON — DBIT", email: cred.senderEmail },
         to: [{ email: toEmail }],
         subject,
         htmlContent: html,
@@ -93,7 +93,7 @@ function getAppUrl(req: NextRequest): string {
     const proto = host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https";
     return `${proto}://${host}`;
   }
-  return "https://idealab.dfriendsclub.in";
+  return "https://ideathon.dfriendsclub.in";
 }
 
 function escapeHtml(str: string): string {
@@ -130,7 +130,7 @@ function emailNav(): string {
                   <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
                 </svg>
               </td>
-              <td style="padding-left:10px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;letter-spacing:0.06em;color:#0D0D0D;vertical-align:middle;">Idea Lab</td>
+              <td style="padding-left:10px;font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:24px;letter-spacing:0.06em;color:#0D0D0D;vertical-align:middle;">IDEATHON</td>
             </tr></table>
           </td>
           <td align="right" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#7A7670;vertical-align:middle;">DBIT</td>
@@ -181,7 +181,7 @@ function emailFooter(): string {
       <td class="pad" style="padding:18px 36px;border-top:1.5px solid #0D0D0D;background:#F2EFE9;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="font-family:'Bebas Neue','Arial Black',Impact,sans-serif;font-size:12px;letter-spacing:0.08em;color:#7A7670;line-height:1.7;">
-            &copy; 2026 Idea Lab &mdash; Chemistry Dept, DBIT Bangalore<br>
+            &copy; 2026 IDEATHON &mdash; Chemistry Department, DBIT Bangalore<br>
             <span style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:600;letter-spacing:0.04em;">By Mithun Gowda B &amp; Lekhan HR</span>
           </td>
           <td class="fr" align="right" valign="bottom" style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;color:#7A7670;white-space:nowrap;line-height:1.6;">
@@ -212,7 +212,7 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
       <table class="ec" role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
 
         ${emailNav()}
-        ${emailTicker(["Idea Lab","DBIT Bangalore","Team Invite","Action Required"])}
+        ${emailTicker(["IDEATHON","DBIT Bangalore","Team Invite","Action Required"])}
 
         <!-- HERO -->
         <tr>
@@ -226,7 +226,7 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
             </div>
 
             <p style="margin:0 0 32px;font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:14px;color:#7A7670;line-height:1.7;">
-              <strong style="color:#0D0D0D;">${safeFrom}</strong> has invited you to join <strong style="color:#0D0D0D;">${safeTeam}</strong> on Idea Lab. Accept or decline from your dashboard.
+              <strong style="color:#0D0D0D;">${safeFrom}</strong> has invited you to join <strong style="color:#0D0D0D;">${safeTeam}</strong> on IDEATHON. Accept or decline from your dashboard.
             </p>
           </td>
         </tr>
@@ -269,7 +269,7 @@ function buildInviteEmail(fromName: string, teamName: string, inviteId: string, 
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                       </svg>
                     </td>
-                    <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7A7670;vertical-align:middle;">Secure &mdash; Idea Lab</td>
+                    <td style="font-family:'Instrument Sans','Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7A7670;vertical-align:middle;">Secure &mdash; IDEATHON</td>
                   </tr></table>
                 </td>
               </tr>
@@ -315,7 +315,7 @@ function buildRequestEmail(fromName: string, teamName: string, baseUrl: string):
       <table class="ec" role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#F2EFE9;border:1.5px solid #0D0D0D;">
 
         ${emailNav()}
-        ${emailTicker(["Idea Lab","DBIT Bangalore","Join Request","Review Needed"])}
+        ${emailTicker(["IDEATHON","DBIT Bangalore","Join Request","Review Needed"])}
 
         <!-- HERO -->
         <tr>
@@ -439,13 +439,13 @@ export async function POST(req: NextRequest) {
     if (type === "invite") {
       await sendEmailWithFallback(
         toEmail,
-        `${fromName} invited you to join ${teamName} — Idea Lab`,
+        `${fromName} invited you to join ${teamName} — IDEATHON`,
         buildInviteEmail(fromName, teamName, inviteId, baseUrl)
       );
     } else if (type === "request") {
       await sendEmailWithFallback(
         toEmail,
-        `${fromName} wants to join ${teamName} — Idea Lab`,
+        `${fromName} wants to join ${teamName} — IDEATHON`,
         buildRequestEmail(fromName, teamName, baseUrl)
       );
     } else {

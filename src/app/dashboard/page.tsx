@@ -205,7 +205,7 @@ function DashboardContent({ session }: { session: SessionData }) {
         const existing = getSession();
         if (existing) {
           const updated = { ...existing, eventId };
-          localStorage.setItem("idealab_session", JSON.stringify(updated));
+          localStorage.setItem("ideathon_session", JSON.stringify(updated));
         }
         setShowEventPicker(false);
         await fetchData();
@@ -218,7 +218,7 @@ function DashboardContent({ session }: { session: SessionData }) {
           key: orderData.keyId,
           amount: orderData.amount,
           currency: orderData.currency,
-          name: "DBIT Chemistry Dept",
+          name: "IDEATHON — DBIT",
           description: `Registration: ${orderData.eventName}`,
           order_id: orderData.orderId,
           handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
@@ -238,7 +238,7 @@ function DashboardContent({ session }: { session: SessionData }) {
 
               const existing = getSession();
               if (existing) {
-                localStorage.setItem("idealab_session", JSON.stringify({ ...existing, eventId }));
+                localStorage.setItem("ideathon_session", JSON.stringify({ ...existing, eventId }));
               }
               setShowEventPicker(false);
               await fetchData();
@@ -357,7 +357,7 @@ function DashboardContent({ session }: { session: SessionData }) {
           key: orderData.keyId,
           amount: orderData.amount,
           currency: orderData.currency,
-          name: "DBIT Chemistry Dept",
+          name: "IDEATHON — DBIT",
           description: `Team Registration: ${orderData.eventName} (${orderData.memberCount} members)`,
           order_id: orderData.orderId,
           handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {

@@ -48,7 +48,7 @@ export default function Home() {
         <div className="ticker-inner">
           {[...Array(2)].map((_, i) => (
             <span key={i} style={{ display: "contents" }}>
-              {["Registrations Open", "Chemistry Department", "DBIT Bangalore", "Pick Your Event", "Individual Registration", "Don Bosco Institute of Technology"].map((text) => (
+              {["Registrations Open", "IDEATHON", "Chemistry Department", "DBIT Bangalore", "Pick Your Event", "Individual Registration", "Don Bosco Institute of Technology"].map((text) => (
                 <span key={text + i} className="ticker-item">
                   <span className="ticker-dot" />
                   {text}
@@ -76,7 +76,7 @@ export default function Home() {
 
           <div className="hero-bottom">
             <p className="hero-desc">
-              Chemistry Department, DBIT invites students to participate in exciting events.
+              Chemistry Department, DBIT invites students to participate in IDEATHON — an exciting inter-department event.
               Register with your USN, verify your identity, and pick the event you want to join.
             </p>
             <div className="hero-cta-group">
@@ -179,7 +179,7 @@ export default function Home() {
             </div>
             <div className="step-index">— 02</div>
             <div className="step-name">Pick an Event</div>
-            <div className="step-desc">Browse available events published by the Chemistry department. Each event has limited seats — select the one you want to attend.</div>
+            <div className="step-desc">Browse available events published by the Chemistry department for IDEATHON. Each event has limited seats — select the one you want to attend. Each event has limited seats — select the one you want to attend.</div>
             <div className="step-tag" style={{ borderColor: "rgba(232,52,26,0.3)", color: "var(--red)" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -279,7 +279,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer>
-        <span className="footer-brand">© 2026 Chem Event Reg — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
+        <span className="footer-brand">© 2026 IDEATHON — Chemistry Department, Don Bosco Institute of Technology, Bangalore</span>
         <span className="footer-brand" style={{ fontSize: "10px", color: "var(--muted)" }}>
           Built by Dept. of CSE, Section B — DBIT &nbsp;·&nbsp; Dev: <strong>Mithun Gowda B</strong> &amp; <strong>Lekhan HR</strong>
         </span>

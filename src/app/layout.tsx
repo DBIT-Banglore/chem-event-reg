@@ -4,8 +4,8 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Chem Event Reg — DBIT Bangalore",
-  description: "Register for Chemistry department events at Don Bosco Institute of Technology, Bangalore.",
+  title: "IDEATHON — DBIT Bangalore",
+  description: "Register for IDEATHON — the Chemistry Department event at Don Bosco Institute of Technology, Bangalore.",
 };
 
 export default function RootLayout({

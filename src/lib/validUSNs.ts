@@ -1,5 +1,5 @@
 /**
- * Valid USN List for DBIT Idea Lab
+ * Valid USN List for DBIT IDEATHON
  * 
  * Based on the specific 2025 DBIT allocation:
  * 

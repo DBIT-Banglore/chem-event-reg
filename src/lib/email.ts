@@ -37,7 +37,7 @@ export async function sendWithBrevo(
         "api-key": cred.apiKey,
       },
       body: JSON.stringify({
-        sender: { name: "Idea Lab — DBIT", email: cred.senderEmail },
+        sender: { name: "IDEATHON — DBIT", email: cred.senderEmail },
         to: [{ email: toEmail }],
         subject,
         htmlContent: html,
@@ -106,7 +106,7 @@ export function buildEmailHtml(otp: string, baseUrl: string, teamContext?: { tea
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chem Event Verification Code</title>
+  <title>IDEATHON Verification Code</title>
   <style>
     @media only screen and (max-width:600px){
       .email-card{width:100%!important}
@@ -143,7 +143,7 @@ export function buildEmailHtml(otp: string, baseUrl: string, teamContext?: { tea
           <!-- Red accent strip -->
           <tr>
             <td style="background:#ef2b14;padding:12px 32px;text-align:center;color:#ffffff;font-size:10px;letter-spacing:4px;text-transform:uppercase;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
-              Chemistry Department • Secure Access • One-Time Code
+              Chemistry Department, DBIT • IDEATHON • One-Time Code
             </td>
           </tr>
 
@@ -158,8 +158,8 @@ export function buildEmailHtml(otp: string, baseUrl: string, teamContext?: { tea
               </div>
               <div style="font-size:15px;line-height:1.7;color:#d2d2d2;font-family:Arial,Helvetica,sans-serif;">
                 ${teamContext
-                  ? `Enter code below to verify your team membership for <strong style="color:#ffffff;">Chem Event Reg</strong>.`
-                  : `Enter code below to verify your student email and continue your registration for <strong style="color:#ffffff;">Chem Event Reg</strong>.`
+                  ? `Enter code below to verify your team membership for <strong style="color:#ffffff;">IDEATHON</strong>.`
+                  : `Enter code below to verify your student email and continue your registration for <strong style="color:#ffffff;">IDEATHON</strong>.`
                 }
               </div>
             </td>
@@ -227,7 +227,7 @@ export function buildEmailHtml(otp: string, baseUrl: string, teamContext?: { tea
           <tr>
             <td class="email-ftr" style="padding:24px 40px 32px 40px;font-size:13px;line-height:1.8;color:#9a9a9a;font-family:Arial,Helvetica,sans-serif;">
               If you didn't request this code, you can safely ignore this email.<br><br>
-              <span style="color:#ffffff;">Chem Event Reg — Chemistry Department</span><br>
+              <span style="color:#ffffff;">IDEATHON — Chemistry Dept, DBIT</span><br>
               Don Bosco Institute of Technology, Bangalore<br>
               Built by Mithun Gowda B • Lekhan HR — Dept. of CSE, DBIT
             </td>

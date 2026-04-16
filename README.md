@@ -1,8 +1,8 @@
-# Chem Event Reg — DBIT
+# IDEATHON — DBIT
 
-Individual programme registration platform for DBIT students to register for Chemistry department events.
+Individual programme registration platform for DBIT students to register for IDEATHON events conducted by the Chemistry Department.
 
-> **Repo** — [github.com/DBIT-Banglore/chem-event-reg](https://github.com/DBIT-Banglore/chem-event-reg) *(private)*
+> **Repo** — [github.com/DBIT-Banglore/ideathon](https://github.com/DBIT-Banglore/ideathon) *(private)*
 > **Built by** — Dept. of Computer Science & Engineering, Section B — Don Bosco Institute of Technology, Bangalore
 
 ---
@@ -24,7 +24,7 @@ Individual programme registration platform for DBIT students to register for Che
 
 ## Overview
 
-**Chem Event Reg** lets DBIT students register for Chemistry department events through a verified, step-by-step flow:
+**IDEATHON** lets DBIT students register for IDEATHON events through a verified, step-by-step flow:
 
 1. Student enters their USN — validated against an admin-uploaded CSV whitelist.
 2. An OTP is sent to their college email (`usn@dbit.in`) via Brevo.
@@ -62,7 +62,7 @@ Key constraints enforced by the platform:
 
 The application implements strict **Cross-Origin Resource Sharing (CORS)** policies to prevent unauthorized access:
 
-- **Production Environment**: Only allows requests from `https://chem-event.netlify.app`
+- **Production Environment**: Only allows requests from `https://ideathon.dfriendsclub.in`
 - **Development Environment**: Allows localhost for testing (`http://localhost:3000`, `http://localhost:3001`, `http://192.0.0.4:3000`)
 
 ### 🛡️ Security Features
@@ -111,7 +111,7 @@ CORS settings are configured in two places:
 To allow additional domains in production, set the `ALLOWED_ORIGINS` environment variable:
 
 ```env
-ALLOWED_ORIGINS=https://chem-event.netlify.app,https://your-custom-domain.com
+ALLOWED_ORIGINS=https://ideathon.dfriendsclub.in,https://your-custom-domain.com
 ```
 
 **⚠️ Security Warning**: Only add trusted domains to `ALLOWED_ORIGINS`. Each added domain can make API requests to your application.
@@ -387,9 +387,9 @@ RAZORPAY_KEY_SECRET=your-razorpay-key-secret
 ADMIN_EMAILS=admin1@domain.com,admin2@domain.com
 
 # CORS Configuration (Optional - defaults provided)
-# Production defaults to: https://chem-event.netlify.app
+# Production defaults to: https://ideathon.dfriendsclub.in
 # Development defaults to: http://localhost:3000,http://localhost:3001,http://192.0.0.4:3000
-# ALLOWED_ORIGINS=https://chem-event.netlify.app,https://your-custom-domain.com
+# ALLOWED_ORIGINS=https://ideathon.dfriendsclub.in,https://your-custom-domain.com
 
 # Environment
 NODE_ENV=production
@@ -460,8 +460,8 @@ src/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/DBIT-Banglore/chem-event-reg.git
-cd chem-event-reg
+git clone https://github.com/DBIT-Banglore/ideathon.git
+cd ideathon
 
 # 2. Install dependencies
 npm install
