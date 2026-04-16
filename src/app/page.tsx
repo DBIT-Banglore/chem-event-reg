@@ -179,7 +179,7 @@ export default function Home() {
             </div>
             <div className="step-index">— 02</div>
             <div className="step-name">Pick an Event</div>
-            <div className="step-desc">Browse available events published by the Chemistry department for IDEATHON. Each event has limited seats — select the one you want to attend. Each event has limited seats — select the one you want to attend.</div>
+            <div className="step-desc">Browse available events published by the Chemistry department for IDEATHON. Each event has limited seats — select the one you want to attend.</div>
             <div className="step-tag" style={{ borderColor: "rgba(232,52,26,0.3)", color: "var(--red)" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -208,7 +208,7 @@ export default function Home() {
       </section>
 
       {/* EVENTS */}
-      <section className="steps-section reveal">
+      <section className="steps-section">
         <div className="steps-header">
           <div className="steps-header-label">
             <div className="section-tag">Events</div>
