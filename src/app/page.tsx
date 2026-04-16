@@ -207,13 +207,83 @@ export default function Home() {
         </div>
       </section>
 
+      {/* EVENTS */}
+      <section className="steps-section reveal">
+        <div className="steps-header">
+          <div className="steps-header-label">
+            <div className="section-tag">Events</div>
+            <div className="section-num">02</div>
+          </div>
+          <div className="steps-header-title">What&apos;s at IDEATHON</div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1px", background: "var(--ink)", border: "1px solid var(--ink)" }}>
+          {[
+            {
+              num: "01",
+              name: "Treasure Hunt + Bounty",
+              tag: "Team · 4 Members",
+              desc: "A strategy-heavy venue adventure built around clues, bonus tasks, and team coordination. Solve clue stations, complete mini-challenges, and take on optional bounty tasks for extra rewards.",
+              judging: "Accuracy, clues solved, bounty completion, teamwork, completion time",
+            },
+            {
+              num: "02",
+              name: "AI Image Generation",
+              tag: "Individual",
+              desc: "Use AI tools to generate images based on assigned themes. Tests prompt engineering, visual imagination, and creative direction — submit your best image with a short note on your prompt logic.",
+              judging: "Creativity, prompt engineering, originality, visual quality, storytelling",
+            },
+            {
+              num: "03",
+              name: "Quiz",
+              tag: "Team · 4 Members",
+              desc: "A multi-round team knowledge contest covering technology, current affairs, pop culture, and logical reasoning. Rounds include MCQs, rapid-fire, and visual prompts.",
+              judging: "Correct answers, response speed, consistency across rounds, final points",
+            },
+            {
+              num: "04",
+              name: "Photo & Video Editing",
+              tag: "Individual",
+              desc: "Edit raw photos or videos within a fixed duration using your preferred tools. Showcases digital media skills through composition, pacing, colour treatment, and narrative impact.",
+              judging: "Creativity, technical skill, storytelling, polish, presentation quality",
+            },
+            {
+              num: "05",
+              name: "Expo",
+              tag: "Individual / Team",
+              desc: "An exhibition-style showcase for projects, prototypes, and innovative ideas. Present to judges and visitors through live demos and Q&A. Encourages knowledge sharing and real-world problem framing.",
+              judging: "Innovation, clarity, technical depth, feasibility, real-world impact",
+            },
+            {
+              num: "06",
+              name: "Memeathon",
+              tag: "Individual",
+              desc: "Create memes around assigned themes within a limited time. Light, highly interactive, and audience-friendly — blends internet culture with structured competition.",
+              judging: "Creativity, humor, originality, relatability, relevance to theme",
+            },
+          ].map((ev) => (
+            <div key={ev.num} style={{ background: "var(--paper)", padding: "1.75rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontFamily: "var(--bebas)", fontSize: "13px", color: "var(--muted)", letterSpacing: "0.08em" }}>— {ev.num}</span>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)", border: "1px solid rgba(232,52,26,0.3)", padding: "2px 8px", letterSpacing: "0.04em" }}>{ev.tag}</span>
+              </div>
+              <div style={{ fontFamily: "var(--bebas)", fontSize: "22px", letterSpacing: "0.03em", lineHeight: 1.1 }}>{ev.name}</div>
+              <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.65, margin: 0 }}>{ev.desc}</p>
+              <div style={{ marginTop: "auto", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.08)", fontSize: "11px", color: "var(--muted)" }}>
+                <span style={{ fontWeight: 600, color: "var(--ink)" }}>Judged on: </span>{ev.judging}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="faq-section reveal">
         <div className="faq-layout">
           <div className="faq-sidebar">
             <div className="section-tag">FAQs</div>
             <div className="faq-sidebar-title">Common Questions</div>
-            <div className="section-num">02</div>
+            <div className="section-num">03</div>
           </div>
           <div className="faq-list">
             {[
