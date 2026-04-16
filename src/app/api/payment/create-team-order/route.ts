@@ -5,10 +5,7 @@ import { getSessionFromRequest } from "@/lib/jwt";
 import { rateLimit } from "@/lib/rate-limit";
 import { FieldValue } from "firebase-admin/firestore";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpay() { return new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID!, key_secret: process.env.RAZORPAY_KEY_SECRET! }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -170,7 +167,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create Razorpay order for paid events
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: totalAmount * 100, // Razorpay expects amount in smallest currency unit (paise)
       currency: "INR",
       receipt: `TEAM-${teamId}-${Date.now()}`.slice(0, 40),

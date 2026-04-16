@@ -4,10 +4,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getSessionFromRequest } from "@/lib/jwt";
 import { rateLimit } from "@/lib/rate-limit";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpay() { return new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID!, key_secret: process.env.RAZORPAY_KEY_SECRET! }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -75,7 +72,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ free: true, eventId, eventId2, eventName: ev1.name, eventName2: ev2.name });
       }
 
-      const order = await razorpay.orders.create({
+      const order = await getRazorpay().orders.create({
         amount: total * 100,
         currency: "INR",
         receipt: `${usn}-c-${Date.now()}`.slice(0, 40),
@@ -135,7 +132,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ free: true, eventId, eventName: event.name });
     }
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: price * 100,
       currency: "INR",
       receipt: `${usn}-${isSlot2 ? "s2" : "s1"}-${Date.now()}`.slice(0, 40),

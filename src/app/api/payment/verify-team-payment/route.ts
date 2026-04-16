@@ -6,10 +6,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getSessionFromRequest } from "@/lib/jwt";
 import { rateLimit } from "@/lib/rate-limit";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+function getRazorpay() { return new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID!, key_secret: process.env.RAZORPAY_KEY_SECRET! }); }
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +42,7 @@ export async function POST(req: NextRequest) {
     // Fetch order from Razorpay server-side to verify notes/amount
     let razorpayOrder: Record<string, any>;
     try {
-      razorpayOrder = await razorpay.orders.fetch(razorpay_order_id) as Record<string, any>;
+      razorpayOrder = await getRazorpay().orders.fetch(razorpay_order_id) as Record<string, any>;
     } catch {
       console.error("[team-payment/verify] Failed to fetch Razorpay order", razorpay_order_id);
       return NextResponse.json({ error: "Could not verify order with payment provider" }, { status: 502 });
