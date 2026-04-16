@@ -217,7 +217,7 @@ export default function Home() {
           <div className="steps-header-title">What&apos;s at IDEATHON</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1px", background: "var(--ink)", border: "1px solid var(--ink)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", border: "1px solid var(--ink)" }}>
           {[
             {
               num: "01",
@@ -262,7 +262,7 @@ export default function Home() {
               judging: "Creativity, humor, originality, relatability, relevance to theme",
             },
           ].map((ev) => (
-            <div key={ev.num} style={{ background: "var(--paper)", padding: "1.75rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div key={ev.num} style={{ background: "var(--paper)", padding: "1.75rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem", outline: "1px solid var(--ink)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontFamily: "var(--bebas)", fontSize: "13px", color: "var(--muted)", letterSpacing: "0.08em" }}>— {ev.num}</span>
                 <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)", border: "1px solid rgba(232,52,26,0.3)", padding: "2px 8px", letterSpacing: "0.04em" }}>{ev.tag}</span>
