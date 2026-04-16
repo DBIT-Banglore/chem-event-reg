@@ -1,14 +1,6 @@
-/**
- * Firebase Configuration
- * 
- * Initializes the Firebase app, Firestore database, and Authentication.
- * Uses environment variables from .env.local for configuration.
- * Implements singleton pattern to prevent multiple initializations.
- */
-
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -19,13 +11,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only once (singleton pattern)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Only initialize on the client side
+const app: FirebaseApp = typeof window !== "undefined"
+  ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp())
+  : (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp());
 
-// Firestore database instance
-export const db = getFirestore(app);
-
-// Firebase Authentication instance
-export const auth = getAuth(app);
-
+export const db: Firestore = getFirestore(app);
+export const auth: Auth = getAuth(app);
 export default app;
